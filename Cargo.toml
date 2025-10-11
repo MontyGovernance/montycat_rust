@@ -1,0 +1,16 @@
+[package]
+name = "montycat"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = {version = "1.0.228", features = ["derive"]}
+url = "2.5.7"
+serde_json = "1.0.138"
+tokio = { version = "1.44.1", features = ["full", "io-util"] }
+simd-json = { version = "0.15.1", features = ["serde_impl"] }
+indexmap = { version = "2.1", features = ["serde"] }
+async-trait = "0.1.88"
+hashbrown = { version = "0.16.0", features = ["serde"] }
+xxhash-rust = { version = "0.8.15", features = ["xxh32"]}
+montycat_serialization_derive = { path = "../montycat_serialization_derive" }
