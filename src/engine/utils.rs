@@ -2,7 +2,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::watch::Receiver;
 use tokio::time::timeout;
-use serde_json::Value;
+// use serde_json::Value;
 use crate::MontycatClientError;
 use std::{sync::Arc, time::Duration};
 
@@ -12,7 +12,7 @@ pub async fn send_data(
     host: &str,
     port: u16,
     query: &[u8],
-    callback: Option<Arc<dyn Fn(Value) + Send + Sync>>,
+    callback: Option<Arc<dyn Fn(&Vec<u8>) + Send + Sync>>,
     stop_event: Option<&mut Receiver<bool>>,
 ) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
@@ -27,6 +27,7 @@ pub async fn send_data(
 
     if is_subscription {
         loop {
+
             if let Some(ref stop) = stop_event {
                 if *stop.borrow() {
                     break;
@@ -42,11 +43,8 @@ pub async fn send_data(
             buf.extend_from_slice(&chunk[..n]);
 
             if buf.contains(&b'\n') {
-                if let Ok(text) = std::str::from_utf8(&buf) {
-                    let parsed = serde_json::from_str::<Value>(text.trim()).map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
-                    if let Some(ref cb) = callback {
-                        cb(parsed.clone());
-                    }
+                if let Some(ref cb) = callback {
+                    cb(&buf);
                 }
                 buf.clear();
             }
@@ -79,7 +77,6 @@ pub async fn send_data(
         }
 
         stream.shutdown().await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
-
         Ok(Some(buf))
 
     }

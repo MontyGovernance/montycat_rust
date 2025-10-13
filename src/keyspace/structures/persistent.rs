@@ -1,4 +1,5 @@
 use crate::engine::structure::Engine;
+use crate::request::utis::functions::fulfil_subscription_request;
 use crate::tools::structure::Limit;
 use std::sync::Arc;
 use super::super::pubtrait::Keyspace;
@@ -50,6 +51,27 @@ impl Keyspace for PersistentKeyspace {
 }
 
 impl PersistentKeyspace {
+
+    pub async fn subscribe(&self, key: Option<String>, custom_key: Option<String>, callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>) -> Result<(), MontycatClientError> {
+
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let store: &String = engine.store.as_ref().ok_or(MontycatClientError::ClientStoreNotSet)?;
+
+        let key: Option<String> = {
+            if key.is_some() && custom_key.is_some() {
+                return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
+            }
+            key.or(custom_key)
+        };
+
+        let port: u16 = engine.port + 1;
+        let request_bytes = fulfil_subscription_request(store, name, key, &engine.username, &engine.password)?;
+        let _response: Option<Vec<u8>> = send_data(&engine.host, port, request_bytes.as_slice(), Some(callback), None).await?;
+
+        Ok(())
+
+    }
 
     /// Creates a new persistent keyspace in the Montycat database.
     ///

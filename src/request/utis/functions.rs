@@ -5,6 +5,7 @@ use crate::{MontycatClientError, global::PRIMITIVE_TYPES, tools::functions::proc
 use std::collections::HashMap;
 use serde::Serialize;
 use rayon::prelude::*;
+use indexmap::IndexMap;
 
 /// Converts a custom key (integer or string) into a hashed value using xxHash.
 ///
@@ -105,4 +106,23 @@ where
     .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
 
     Ok(res)
+}
+
+pub fn fulfil_subscription_request(store: &str, keyspace: &str, key: Option<String>, username: &str, password: &str) -> Result<Vec<u8>, MontycatClientError> {
+
+    let mut indexmap = IndexMap::new();
+
+    indexmap.insert("subscribe".to_string(), serde_json::Value::Bool(true));
+    indexmap.insert("store".to_string(), serde_json::Value::String(store.to_owned()));
+    indexmap.insert("keyspace".to_string(), serde_json::Value::String(keyspace.to_owned()));
+    if let Some(k) = key {
+        indexmap.insert("key".to_string(), serde_json::Value::String(k));
+    }
+    indexmap.insert("username".to_string(), serde_json::Value::String(username.to_owned()));
+    indexmap.insert("password".to_string(), serde_json::Value::String(password.to_owned()));
+
+    let bytes = serde_json::to_vec(&indexmap).map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
+
+    Ok(bytes)
+
 }
