@@ -7,7 +7,7 @@ use crate::errors::MontycatClientError;
 use crate::request::structure::Req;
 use crate::engine::utils::send_data;
 use crate::traits::RuntimeSchema;
-use crate::tools::functions::{process_json_value, process_value};
+use crate::tools::functions::{process_bulk_values, process_json_value, process_value};
 use serde::Serialize;
 use std::any::type_name;
 
@@ -64,9 +64,9 @@ impl InMemoryKeyspace {
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::StoreNotSet` - If the store is not set in the engine.
-    /// * `MontycatClientError::EngineError` - If there is an error with the engine.
-    /// * `MontycatClientError::ValueParsingError` - If there is an error parsing the response.
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
     pub async fn create_keyspace(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
@@ -74,7 +74,7 @@ impl InMemoryKeyspace {
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
 
         let vec: Vec<String> = vec![
             "create-keyspace".into(),
@@ -114,9 +114,9 @@ impl InMemoryKeyspace {
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::StoreNotSet` - If the store is not set in the engine.
-    /// * `MontycatClientError::EngineError` - If there is an error with the engine.
-    /// * `MontycatClientError::ValueParsingError` - If there is an error parsing the response.
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
     pub async fn insert_value<T>(&self, value: T, expire_sec: Option<usize>) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -126,9 +126,10 @@ impl InMemoryKeyspace {
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "insert_value".to_string();
         let mut schema: Option<String> = None;
+
         let value_to_send: String = process_value(value)?;
 
         let type_name_retrieved: &str = type_name::<T>();
@@ -139,6 +140,65 @@ impl InMemoryKeyspace {
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             schema,
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            value: value_to_send,
+            command,
+            expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+
+        Ok(response)
+
+    }
+
+    /// Inserts a simple value (without schema) into the keyspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to insert. Must implement `Serialize`.
+    /// * `expire_sec` - Optional expiration time in seconds.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let value = vec!["simple_value1", "simple_value2"];
+    ///
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value_no_schema(value, Some(3600)).await;
+    ///
+    /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
+    ///
+    pub async fn insert_value_no_schema<T>(&self, value: T, expire_sec: Option<usize>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    where
+        T: Serialize + Send + 'static,
+    {
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let command: String = "insert_value".to_string();
+        let value_to_send: String = process_json_value(&value)?;
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
             username: engine.username.clone(),
             password: engine.password.clone(),
             keyspace: name.to_owned(),
@@ -178,9 +238,9 @@ impl InMemoryKeyspace {
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::StoreNotSet` - If the store is not set in the engine.
-    /// * `MontycatClientError::EngineError` - If there is an error with the engine.
-    /// * `MontycatClientError::ValueParsingError` - If there is an error parsing the response.
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
     pub async fn get_keys(&self, volumes: Option<Vec<String>>, latest_volume: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
@@ -188,7 +248,7 @@ impl InMemoryKeyspace {
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "get_keys".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -211,26 +271,51 @@ impl InMemoryKeyspace {
 
     }
 
+    /// Updates a value in the keyspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Optional key of the value to update.
+    /// * `custom_key` - Optional custom key of the value to update.
+    /// * `value` - The new value to set. Must implement `Serialize`.
+    /// * `expire_sec` - Optional expiration time in seconds.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let updates = serde_json::json!({ "field1": "new_value" });
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, Some(3600)).await;
+    /// let parsed = MontycatResponse::<String>::parse_response(res);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
+    ///
     pub async fn update_value<T>(&self, key: Option<String>, custom_key: Option<String>, value: T, expire_sec: Option<usize>) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
     {
 
         if key.is_none() && custom_key.is_none() || (key.is_some() && custom_key.is_some()) {
-            return Err(MontycatClientError::NoValidInputProvided);
+            return Err(MontycatClientError::ClientNoValidInputProvided);
         }
 
-        let key: String = key.or(custom_key).ok_or(MontycatClientError::NoValidInputProvided)?;
+        let key: String = key.or(custom_key).ok_or(MontycatClientError::ClientNoValidInputProvided)?;
 
         let engine: Arc<Engine> = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "update_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
-
-        println!("Value to send in update_value: {}", value_to_send);
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             key: Some(key),
@@ -253,6 +338,122 @@ impl InMemoryKeyspace {
 
     }
 
+    /// Inserts multiple values into the keyspace in bulk.
+    ///
+    /// # Arguments
+    ///
+    /// * `bulk_values` - A vector of values to insert. Each value must implement `Serialize` and `RuntimeSchema`.
+    /// * `expire_sec` - Optional expiration time in seconds for the inserted values.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let values = vec![YourType { /* fields */ }, YourType { /* fields */ }];
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values, Some(3600)).await;
+    /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
+    ///
+    pub async fn insert_bulk<T>(&self, bulk_values: Vec<T>, expire_sec: Option<usize>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    where
+        T: Serialize + RuntimeSchema + Send + 'static,
+    {
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let command: String = "insert_value".to_string();
+
+        let (value_to_send, schema) = process_bulk_values(bulk_values).await?;
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            schema,
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            value: value_to_send,
+            command,
+            expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+
+        Ok(response)
+
+    }
+
+    /// Inserts multiple simple values (without schema) into the keyspace in bulk.
+    ///
+    /// # Arguments
+    ///
+    /// * `bulk_values` - A vector of values to insert. Each value must implement `Serialize`.
+    /// * `expire_sec` - Optional expiration time in seconds for the inserted values.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let values = vec!["simple_value1", "simple_value2"];
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values, Some(3600)).await;
+    /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
+    ///
+    pub async fn insert_bulk_no_schema<T>(&self, bulk_values: Vec<T>, expire_sec: Option<usize>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    where
+        T: Serialize + Send + 'static,
+    {
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let command: String = "insert_value".to_string();
+
+        let value_to_send: String = process_json_value(&bulk_values)?;
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            value: value_to_send,
+            command,
+            expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+
+        Ok(response)
+
+    }
 
 }
 

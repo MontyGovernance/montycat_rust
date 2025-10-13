@@ -16,10 +16,10 @@ pub async fn send_data(
     stop_event: Option<&mut Receiver<bool>>,
 ) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-    let mut stream = TcpStream::connect((host, port)).await.map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+    let mut stream = TcpStream::connect((host, port)).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
-    stream.write_all(query).await.map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
-    stream.flush().await.map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+    stream.write_all(query).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+    stream.flush().await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
     let mut buf = vec![];
 
@@ -34,7 +34,7 @@ pub async fn send_data(
             }
 
             let mut chunk = vec![0u8; CHUNK_SIZE];
-            let n = stream.read(&mut chunk).await.map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+            let n = stream.read(&mut chunk).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
             if n == 0 {
                 break;
             }
@@ -43,7 +43,7 @@ pub async fn send_data(
 
             if buf.contains(&b'\n') {
                 if let Ok(text) = std::str::from_utf8(&buf) {
-                    let parsed = serde_json::from_str::<Value>(text.trim()).map_err(|e| MontycatClientError::ValueParsingError(e.to_string()))?;
+                    let parsed = serde_json::from_str::<Value>(text.trim()).map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
                     if let Some(ref cb) = callback {
                         cb(parsed.clone());
                     }
@@ -52,7 +52,7 @@ pub async fn send_data(
             }
         }
 
-        stream.shutdown().await.map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+        stream.shutdown().await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
         Ok(None)
 
     } else {
@@ -65,8 +65,8 @@ pub async fn send_data(
                 Duration::from_secs(120),
                 stream.read(&mut chunk),
             ).await
-            .map_err(|e| MontycatClientError::EngineError(e.to_string()))?
-            .map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+            .map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?
+            .map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
             if n == 0 {
                 break;
@@ -78,7 +78,7 @@ pub async fn send_data(
             }
         }
 
-        stream.shutdown().await.map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+        stream.shutdown().await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
         Ok(Some(buf))
 

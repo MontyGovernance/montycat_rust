@@ -1,14 +1,19 @@
-use crate::errors::MontycatClientError;
+use crate::{errors::MontycatClientError};
 use crate::traits::RuntimeSchema;
 use serde::Serialize;
 use serde_json::{Value, Map};
+
+use crate::request::utis::functions::is_custom_type;
+use std::collections::HashSet;
+use std::{any::type_name};
+use rayon::prelude::*;
 
 
 pub fn process_json_value<T>(value: &T) -> Result<String, MontycatClientError>
 where T: Serialize,
 {
     let value_to_send: String = simd_json::to_string(value)
-        .map_err(|e| MontycatClientError::ValueParsingError(e.to_string()))?;
+        .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
 
     Ok(value_to_send)
 }
@@ -26,7 +31,7 @@ where
         let mut timestamps: Map<String, Value> = Map::new();
 
         let val_as_serde = serde_json::to_value(&value)
-            .map_err(|e| MontycatClientError::ValueParsingError(e.to_string()))?;
+            .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
 
         if let Some(obj) = val_as_serde.as_object() {
             val_as_map = obj.to_owned();
@@ -48,14 +53,14 @@ where
                             pointers.insert(field_name.to_string(), content);
                         },
                         _ => {
-                            return Err(MontycatClientError::NoValidInputProvided);
+                            return Err(MontycatClientError::ClientNoValidInputProvided);
                         }
                     }
 
                     removal.push(field_name);
                 } else if field_type == "Timestamp" {
 
-                    let timestamp_value: &Value = field_value.get("timestamp").ok_or(MontycatClientError::NoValidInputProvided)?;
+                    let timestamp_value: &Value = field_value.get("timestamp").ok_or(MontycatClientError::ClientNoValidInputProvided)?;
 
                     timestamps.insert(field_name.to_string(), timestamp_value.clone());
                     removal.push(field_name);
@@ -80,10 +85,10 @@ where
     let value_to_send: String = {
         if val_as_map.is_empty() {
             simd_json::to_string(&value)
-                .map_err(|e| MontycatClientError::ValueParsingError(e.to_string()))?
+                .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?
         } else {
             simd_json::to_string(&val_as_map)
-                .map_err(|e| MontycatClientError::ValueParsingError(e.to_string()))?
+                .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?
         }
     };
 
@@ -122,6 +127,44 @@ pub fn define_type(field_type: &str) -> Result<&'static str, MontycatClientError
         "Timestamp" => Ok("Timestamp"),
 
         // Fallback
-        _ => Err(MontycatClientError::UnsupportedFieldType(field_type.to_owned())),
+        _ => Err(MontycatClientError::ClientUnsupportedFieldType(field_type.to_owned())),
     }
 }
+
+pub async fn process_bulk_values<T>(values: Vec<T>) -> Result<(String, Option<String>), MontycatClientError>
+where T: Serialize + RuntimeSchema + Send + 'static,
+{
+    let res: (String, Option<String>) = tokio::task::spawn_blocking(move || {
+
+        let serialized_and_schemas: Result<Vec<(String, Option<String>)>, MontycatClientError> =
+            values
+                .into_par_iter()
+                .map(|val| {
+                    let serialized = process_value(val)?;
+                    let type_name_retrieved: &str = type_name::<T>();
+                    let schema = is_custom_type(type_name_retrieved).map(|s| s.to_string());
+                    Ok((serialized, schema))
+                })
+                .collect();
+
+        let serialized_and_schemas = serialized_and_schemas?;
+
+        let serialized_values: Vec<String> = serialized_and_schemas.iter().map(|(s, _)| s.clone()).collect();
+        let schemas: HashSet<String> = serialized_and_schemas.iter().filter_map(|(_, s)| s.clone()).collect();
+
+        let schema = match schemas.len() {
+            0 => None,
+            1 => Some(schemas.into_iter().next().unwrap()),
+            _ => return Err(MontycatClientError::ClientMultipleSchemasFound),
+        };
+
+        let value_to_send: String = process_json_value(&serialized_values)?;
+
+        Ok((value_to_send, schema))
+
+    }).await.map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
+
+    Ok(res)
+
+}
+

@@ -25,13 +25,13 @@ impl Req {
     pub fn byte_down(&self) -> Result<Vec<u8>, MontycatClientError> {
         match self {
             Req::Raw(map) => {
-                let json_str: String = simd_json::to_string(map).map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+                let json_str: String = simd_json::to_string(map).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
                 let mut bytes: Vec<u8> = json_str.into_bytes();
                 bytes.push(b'\n');
                 Ok(bytes)
             },
             Req::Store(map) => {
-                let json_str: String = simd_json::to_string(map).map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+                let json_str: String = simd_json::to_string(map).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
                 let mut bytes: Vec<u8> = json_str.into_bytes();
                 bytes.push(b'\n');
                 Ok(bytes)

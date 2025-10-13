@@ -91,25 +91,25 @@ impl Engine {
     pub fn from_uri(uri: &str) -> Result<Arc<Self>, MontycatClientError> {
 
         if !uri.starts_with("montycat://") {
-            return Err(MontycatClientError::GenericError("URI must start with montycat://".into()));
+            return Err(MontycatClientError::ClientGenericError("URI must start with montycat://".into()));
         }
 
-        let parsed: Url = Url::parse(uri).map_err(|e| MontycatClientError::EngineError(e.to_string()))?;
+        let parsed: Url = Url::parse(uri).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
         let username: &str = parsed.username();
         if username.is_empty() {
-            return Err(MontycatClientError::GenericError("Username must be provided".into()));
+            return Err(MontycatClientError::ClientGenericError("Username must be provided".into()));
         }
 
         let password: &str = parsed.password().ok_or_else(|| {
-            MontycatClientError::GenericError("Password must be provided".into())
+            MontycatClientError::ClientGenericError("Password must be provided".into())
         })?;
 
         let host: &str = parsed.host_str()
-            .ok_or_else(|| MontycatClientError::GenericError("Host must be provided".into()))?;
+            .ok_or_else(|| MontycatClientError::ClientGenericError("Host must be provided".into()))?;
 
         let port: u16 = parsed.port()
-            .ok_or_else(|| MontycatClientError::GenericError("Port must be provided".into()))?;
+            .ok_or_else(|| MontycatClientError::ClientGenericError("Port must be provided".into()))?;
 
         let store: Option<String> = parsed.path().strip_prefix('/').and_then(|p| {
             if p.is_empty() { None } else { Some(p.to_string()) }
@@ -157,7 +157,7 @@ impl Engine {
             Ok(response)
 
         } else {
-            Err(MontycatClientError::StoreNotSet)
+            Err(MontycatClientError::ClientStoreNotSet)
         }
 
     }
@@ -196,7 +196,7 @@ impl Engine {
             Ok(response)
 
         } else {
-            Err(MontycatClientError::StoreNotSet)
+            Err(MontycatClientError::ClientStoreNotSet)
         }
 
     }
@@ -372,7 +372,7 @@ impl Engine {
             if let Some(s) = store {
                 s
             } else {
-                self.store.as_deref().ok_or(MontycatClientError::StoreNotSet)?
+                self.store.as_deref().ok_or(MontycatClientError::ClientStoreNotSet)?
             }
         };
 
@@ -445,7 +445,7 @@ impl Engine {
             if let Some(s) = store {
                 s
             } else {
-                self.store.as_deref().ok_or(MontycatClientError::StoreNotSet)?
+                self.store.as_deref().ok_or(MontycatClientError::ClientStoreNotSet)?
             }
         };
 

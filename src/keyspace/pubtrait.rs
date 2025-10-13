@@ -1,14 +1,12 @@
-use std::{sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use crate::{
-    MontycatClientError,
-    engine::{structure::Engine, utils::send_data},
-    request::{
+    Limit, MontycatClientError, engine::{structure::Engine, utils::send_data}, request::{
         store_request::structure::StoreRequestClient,
         structure::Req,
-        utis::functions::{convert_custom_key, merge_keys}
-    }, tools::functions::define_type};
+        utis::functions::{convert_custom_key, merge_bulk_keys_values, merge_keys}
+    }, tools::functions::{define_type, process_json_value}};
 use async_trait::async_trait;
-use hashbrown::HashMap as BrownHashMap;
+use serde::{Serialize};
 
 #[async_trait]
 pub trait Keyspace
@@ -35,16 +33,16 @@ where Self: Sized + Send + Sync
     /// ```
     ///
     /// # Errors
-    /// * `MontycatClientError::StoreNotSet` - If the store is not set in the engine
-    /// * `MontycatClientError::EngineError` - If there is an error with the engine
-    /// * `MontycatClientError::ValueParsingError` - If there is an error parsing the response
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response
     ///
     async fn remove_keyspace(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         let engine: Arc<Engine> = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
 
         let vec: Vec<String> = vec![
             "remove-keyspace".into(),
@@ -114,17 +112,17 @@ where Self: Sized + Send + Sync
     async fn get_value(&self, key: Option<&str>, custom_key: Option<&str>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         if !key.is_some() && !custom_key.is_some() {
-            return Err(MontycatClientError::SelectedBothKeyAndCustomKey);
+            return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
         }
 
         if key.is_none() && custom_key.is_none() {
-            return Err(MontycatClientError::NoValidInputProvided);
+            return Err(MontycatClientError::ClientNoValidInputProvided);
         }
 
         let mut key: String = key.unwrap_or("").to_owned();
 
         if with_pointers_metadata && with_pointers {
-            return Err(MontycatClientError::SelectedBothPointersValueAndMetadata);
+            return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
         }
 
         if let Some(custom_key_unwrapped) = custom_key {
@@ -135,7 +133,7 @@ where Self: Sized + Send + Sync
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "get_value".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -201,7 +199,7 @@ where Self: Sized + Send + Sync
     async fn delete_key(&self, key: &str, custom_key: Option<&str>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         if !key.is_empty() && custom_key.is_some() {
-            return Err(MontycatClientError::SelectedBothKeyAndCustomKey);
+            return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
         }
 
         let mut key: String = key.to_owned();
@@ -214,7 +212,7 @@ where Self: Sized + Send + Sync
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "delete_key".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -279,7 +277,7 @@ where Self: Sized + Send + Sync
     async fn list_all_depending_keys(&self, key: &str, custom_key: Option<&str>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         if !key.is_empty() && custom_key.is_some() {
-            return Err(MontycatClientError::SelectedBothKeyAndCustomKey);
+            return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
         }
 
         let mut key: String = key.to_owned();
@@ -292,7 +290,7 @@ where Self: Sized + Send + Sync
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "list_all_depending_keys".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -344,7 +342,7 @@ where Self: Sized + Send + Sync
     async fn get_bulk(&self, bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         if with_pointers && with_pointers_metadata {
-            return Err(MontycatClientError::SelectedBothPointersValueAndMetadata);
+            return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
         }
 
         let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
@@ -353,7 +351,7 @@ where Self: Sized + Send + Sync
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "get_bulk".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -420,7 +418,7 @@ where Self: Sized + Send + Sync
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "delete_bulk".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -456,9 +454,9 @@ where Self: Sized + Send + Sync
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::StoreNotSet` - If the store is not set in the engine
-    /// * `MontycatClientError::EngineError` - If there is an error with the engine
-    /// * `MontycatClientError::ValueParsingError` - If there is an error parsing the response
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response
     ///
     async fn get_len(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
@@ -466,7 +464,7 @@ where Self: Sized + Send + Sync
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "get_len".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -524,7 +522,7 @@ where Self: Sized + Send + Sync
 
         let (fields, schema_name) = schema_params;
 
-        let mut schema_types: BrownHashMap<String, String> = BrownHashMap::new();
+        let mut schema_types: HashMap<String, String> = HashMap::new();
 
         for (field_name, field_type) in fields.into_iter() {
             let type_def = define_type(field_type)?;
@@ -532,12 +530,12 @@ where Self: Sized + Send + Sync
         }
 
         let schema_types_as_string: String = serde_json::to_string(&schema_types)
-            .map_err(|e| MontycatClientError::ValueParsingError(e.to_string()))?;
+            .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
 
         let engine: Arc<Engine> = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
 
         let vec: Vec<String> = vec![
                 "enforce-schema".into(),
@@ -582,14 +580,14 @@ where Self: Sized + Send + Sync
     /// * Returns MontycatClientError if there is an error with the engine
     /// * Returns MontycatClientError if there is an error parsing the response
     ///
-    async fn remove_enforced_schema(&self, schema_name: (std::collections::HashMap<&str, &str>, &str)) -> Result<Option<Vec<u8>>, MontycatClientError> {
+    async fn remove_enforced_schema(&self, schema_name: (HashMap<&str, &str>, &str)) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         let (_fields, schema_name) = schema_name;
 
         let engine: Arc<Engine> = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
-        let store: String = engine.store.clone().ok_or(MontycatClientError::StoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
 
         let vec: Vec<String> = vec![
                 "remove-enforced-schema".into(),
@@ -602,6 +600,275 @@ where Self: Sized + Send + Sync
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+
+        Ok(response)
+
+    }
+
+    /// Update multiple key-value pairs in the keyspace
+    ///
+    /// # Arguments
+    ///
+    /// * `bulk_keys_values` - A vector of HashMaps containing key-value pairs to update
+    /// * `bulk_custom_keys_values` - A vector of HashMaps containing custom key-value pairs to update
+    ///
+    /// # Behavior
+    ///
+    /// Merges the provided key-value pairs and sends a request to the server to update them in the keyspace
+    /// Returns the raw response bytes from the server
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    ///
+    /// let bulk_keys_values = vec![
+    ///     hashmap![("298989599989124434694729184587200373152".to_string(), "value1".to_string())],
+    ///     hashmap![("298989599989124434694729184587200373153".to_string(), "value2".to_string())],
+    /// ];
+    ///
+    /// let bulk_custom_keys_values = vec![
+    ///     hashmap![("MyCustomKey1".to_string(), "custom_value1".to_string())],
+    ///     hashmap![("MyCustomKey2".to_string(), "custom_value2".to_string())],
+    /// ];
+    ///
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_bulk(bulk_keys_values, bulk_custom_keys_values).await;
+    ///
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    ///
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * Returns MontycatClientError if neither bulk_keys_values nor bulk_custom_keys_values are provided
+    /// * Returns MontycatClientError if there is an error merging the key-value pairs
+    /// * Returns MontycatClientError if there is an error processing the JSON value
+    /// * Returns MontycatClientError if the store is not set in the engine
+    /// * Returns MontycatClientError if there is an error with the engine
+    /// * Returns MontycatClientError if there is an error parsing the response
+    ///
+    async fn update_bulk<T>(&self, bulk_keys_values: Vec<HashMap<String, T>>, bulk_custom_keys_values: Vec<HashMap<String, T>>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    where
+        T: Serialize + Send + 'static,
+    {
+
+        if bulk_keys_values.is_empty() && bulk_custom_keys_values.is_empty() {
+            return Err(MontycatClientError::ClientNoValidInputProvided);
+        }
+
+        let bulk: HashMap<String, String> = merge_bulk_keys_values(bulk_keys_values, bulk_custom_keys_values).await?;
+
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let command: String = "update_value".to_string();
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            bulk_keys_values: bulk,
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            command,
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+
+        Ok(response)
+
+    }
+
+    /// Lookup keys in the keyspace based on provided filters
+    ///
+    /// # Arguments
+    ///
+    /// * `filters` - A serializable object representing the filters to apply
+    /// * `limit` - An optional Limit struct to limit the number of results
+    /// * `schema` - An optional schema name to apply during the lookup
+    ///
+    /// # Behavior
+    ///
+    /// Sends a request to the server to lookup keys based on the provided filters and limit
+    /// Returns the raw response bytes from the server
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use serde_json::json;
+    ///
+    /// let filters = json!({
+    ///     "field1": "value1",
+    ///     "field2": { "num": 10 }
+    /// });
+    ///
+    /// let limit = Some(Limit { start: 0, stop: 10 });
+    ///
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_keys_where(filters, limit, Some("MySchema".to_string())).await;
+    ///
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    ///
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * Returns MontycatClientError if there is an error processing the JSON value
+    /// * Returns MontycatClientError if the store is not set in the engine
+    /// * Returns MontycatClientError if there is an error with the engine
+    /// * Returns MontycatClientError if there is an error parsing the response
+    ///
+    async fn lookup_keys_where<T>(&self, filters: T, limit: Option<Limit>, schema_name: Option<(HashMap<&str, &str>, &str)>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    where
+        T: Serialize + Send + 'static,
+    {
+
+        let schema = {
+            if let Some((_, schema_name)) = schema_name {
+                Some(schema_name.to_string())
+            } else {
+                None
+            }
+        };
+
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let command: String = "lookup_keys".to_string();
+
+        let filters_serialized: String = process_json_value(&filters)?;
+
+        let limit_map: HashMap<String, usize> = match limit {
+            Some(lim) => {
+
+                if lim.start > lim.stop {
+                    return Err(MontycatClientError::ClientGenericError("Limit start cannot be greater than stop".into()));
+                }
+
+                lim.to_map()
+            },
+            None => Limit::default_limit().to_map(),
+        };
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            schema,
+            limit_output: limit_map,
+            search_criteria: filters_serialized,
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            command,
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+
+        Ok(response)
+
+    }
+
+    /// Lookup values in the keyspace based on provided filters
+    ///
+    /// # Arguments
+    ///
+    /// * `filters` - A serializable object representing the filters to apply
+    /// * `limit` - An optional Limit struct to limit the number of results
+    /// * `with_pointers` - Whether to include pointers in the returned values
+    /// * `key_included` - Whether to include the key in the returned values
+    /// * `pointers_metadata` - Whether to include metadata about pointers in the returned values
+    /// * `schema` - An optional schema name to apply during the lookup
+    ///
+    /// # Behavior
+    ///
+    /// Sends a request to the server to lookup values based on the provided filters and limit
+    /// Returns the raw response bytes from the server
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use serde_json::json;
+    ///
+    /// let filters = json!({
+    ///     "field1": "value1",
+    ///    "field2": { "num": 10 }
+    /// });
+    ///
+    /// let limit = Some(Limit { start: 0, stop: 10 });
+    ///
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_values_where(filters, limit, true, true, false, Some("MySchema".to_string())).await;
+    ///
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * Returns MontycatClientError if there is an error processing the JSON value
+    /// * Returns MontycatClientError if the store is not set in the engine
+    /// * Returns MontycatClientError if there is an error with the engine
+    /// * Returns MontycatClientError if there is an error parsing the response
+    ///
+    async fn lookup_values_where<T>(&self, filters: T, limit: Option<Limit>, with_pointers: bool, key_included: bool, pointers_metadata: bool, schema_name: Option<(HashMap<&str, &str>, &str)>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    where
+        T: Serialize + Send + 'static,
+    {
+
+        let schema = {
+            if let Some((_, schema_name)) = schema_name {
+                Some(schema_name.to_string())
+            } else {
+                None
+            }
+        };
+
+        let engine: Arc<Engine> = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let command: String = "lookup_values".to_string();
+
+        let filters_serialized: String = process_json_value(&filters)?;
+
+        let limit_map: HashMap<String, usize> = match limit {
+            Some(lim) => {
+
+                if lim.start > lim.stop {
+                    return Err(MontycatClientError::ClientGenericError("Limit start cannot be greater than stop".into()));
+                }
+
+                lim.to_map()
+            },
+            None => Limit::default_limit().to_map(),
+        };
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            with_pointers,
+            key_included,
+            pointers_metadata,
+            schema,
+            limit_output: limit_map,
+            search_criteria: filters_serialized,
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            command,
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
         let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
 
         Ok(response)

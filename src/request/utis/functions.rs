@@ -1,7 +1,10 @@
 
 use std::{fmt::Display};
 use xxhash_rust::xxh32::xxh32;
-use crate::{MontycatClientError, global::PRIMITIVE_TYPES};
+use crate::{MontycatClientError, global::PRIMITIVE_TYPES, tools::functions::process_json_value};
+use std::collections::HashMap;
+use serde::Serialize;
+use rayon::prelude::*;
 
 /// Converts a custom key (integer or string) into a hashed value using xxHash.
 ///
@@ -31,7 +34,7 @@ pub fn is_custom_type(type_name: &str) -> Option<&str> {
 pub async fn merge_keys(bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>) -> Result<Vec<String>, MontycatClientError> {
 
     if bulk_keys.is_none() && bulk_custom_keys.is_none() {
-        return Err(MontycatClientError::NoValidInputProvided);
+        return Err(MontycatClientError::ClientNoValidInputProvided);
     }
 
     let bulk_keys_clone: Option<Vec<String>> = bulk_keys.clone();
@@ -54,12 +57,52 @@ pub async fn merge_keys(bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option
 
         keys_merged
 
-    }).await.map_err(|e| MontycatClientError::AsyncRuntimeError(e.to_string()))?;
+    }).await.map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))?;
 
     if keys_processed.is_empty() {
-        return Err(MontycatClientError::NoValidInputProvided);
+        return Err(MontycatClientError::ClientNoValidInputProvided);
     }
 
     Ok(keys_processed)
 
+}
+
+pub async fn merge_bulk_keys_values<T>(
+    bulk_keys_values: Vec<HashMap<String, T>>,
+    bulk_custom_keys_values: Vec<HashMap<String, T>>,
+) -> Result<HashMap<String, String>, MontycatClientError>
+where
+    T: Serialize + Send + 'static,
+{
+    let res: HashMap<String, String> = tokio::task::spawn_blocking(move || {
+        let mut bulk_keys_values = bulk_keys_values;
+
+        if !bulk_custom_keys_values.is_empty() {
+            for custom_key_value in bulk_custom_keys_values {
+                for (custom_key, value) in custom_key_value {
+                    let internal_key = convert_custom_key(&custom_key);
+                    let mut map = HashMap::new();
+                    map.insert(internal_key, value);
+                    bulk_keys_values.push(map);
+                }
+            }
+        }
+
+        let merged: HashMap<String, T> = bulk_keys_values
+            .into_par_iter()
+            .flat_map(|map| map.into_par_iter())
+            .collect();
+
+        let serialized: HashMap<String, String> = merged
+            .into_par_iter()
+            .map(|(k, v)| process_json_value(&v).map(|val| (k, val)))
+            .collect::<Result<HashMap<_, _>, MontycatClientError>>()?;
+
+        Ok::<_, MontycatClientError>(serialized)
+
+    })
+    .await
+    .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
+
+    Ok(res)
 }
