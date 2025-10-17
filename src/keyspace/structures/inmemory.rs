@@ -1,7 +1,6 @@
 use crate::engine::structure::Engine;
 use crate::request::store_request::structure::StoreRequestClient;
 use crate::request::utis::functions::is_custom_type;
-use std::sync::Arc;
 use super::super::pubtrait::Keyspace;
 use crate::errors::MontycatClientError;
 use crate::request::structure::Req;
@@ -16,13 +15,13 @@ pub struct  InMemoryKeyspace {
     pub name: String,
     pub persistent: bool,
     pub distributed: bool,
-    pub engine: Arc<Engine>
+    pub engine: Engine
 }
 
 impl Keyspace for InMemoryKeyspace {
 
-    fn get_engine(&self) -> Arc<Engine> {
-        Arc::clone(&self.engine)
+    fn get_engine(&self) -> Engine {
+        self.engine.clone()
     }
 
     fn get_name(&self) -> &str {
@@ -37,13 +36,13 @@ impl Keyspace for InMemoryKeyspace {
         self.distributed
     }
 
-    fn new(name: &str,  engine: Arc<Engine>) -> Arc<Self> {
-        Arc::new(Self {
+    fn new(name: &str, engine: &Engine) -> Self {
+        Self {
             name: name.to_owned(),
             persistent: false,
             distributed: false,
-            engine
-        })
+            engine: engine.clone()
+        }
     }
 
 }
@@ -70,11 +69,12 @@ impl InMemoryKeyspace {
     ///
     pub async fn create_keyspace(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "create-keyspace".into(),
@@ -87,7 +87,7 @@ impl InMemoryKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         return Ok(response)
     }
@@ -122,11 +122,12 @@ impl InMemoryKeyspace {
     where
         T: Serialize + RuntimeSchema + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
         let mut schema: Option<String> = None;
 
@@ -153,7 +154,7 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -190,11 +191,12 @@ impl InMemoryKeyspace {
     where
         T: Serialize + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
 
@@ -212,7 +214,7 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -244,11 +246,12 @@ impl InMemoryKeyspace {
     ///
     pub async fn get_keys(&self, volumes: Option<Vec<String>>, latest_volume: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "get_keys".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -265,7 +268,7 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -309,11 +312,12 @@ impl InMemoryKeyspace {
 
         let key: String = key.or(custom_key).ok_or(MontycatClientError::ClientNoValidInputProvided)?;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "update_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
 
@@ -332,7 +336,7 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -367,11 +371,12 @@ impl InMemoryKeyspace {
     where
         T: Serialize + RuntimeSchema + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
 
         let (value_to_send, schema) = process_bulk_values(bulk_values).await?;
@@ -391,7 +396,7 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -426,11 +431,12 @@ impl InMemoryKeyspace {
     where
         T: Serialize + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
 
         let value_to_send: String = process_json_value(&bulk_values)?;
@@ -449,7 +455,7 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 

@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use crate::{errors::MontycatClientError, request::structure::Req};
 use super::utils::send_data;
-use std::sync::Arc;
 
 pub enum ValidPermissions {
     Read,
@@ -27,6 +26,7 @@ pub struct Engine {
     pub username: String,
     pub password: String,
     pub store: Option<String>,
+    pub use_tls: bool,
 }
 
 impl Engine {
@@ -39,6 +39,7 @@ impl Engine {
     /// * `username` - The username for authentication.
     /// * `password` - The password for authentication.
     /// * `store` - An optional store name to connect to.
+    /// * `use_tls` - A boolean indicating whether to use TLS for the connection.
     ///
     /// # Returns
     ///
@@ -47,25 +48,30 @@ impl Engine {
     /// # Examples
     ///
     /// ```rust
-    /// let engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), Some("mystore".into()));
+    /// let engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), Some("mystore".into()), false);
     /// ```
     ///
     /// # Errors
     ///
     /// This function does not return errors. However, ensure that the provided parameters are valid.
     ///
-    pub fn new(host: String, port: u16, username: String, password: String, store: Option<String>) -> Arc<Self> {
+    pub fn new(host: String, port: u16, username: String, password: String, store: Option<String>, use_tls: bool) -> Self {
         Engine {
             host,
             port,
             username,
             password,
             store,
-        }.into()
+            use_tls,
+        }
     }
 
     pub fn get_credentials(&self) -> Vec<String> {
         vec![self.username.clone(), self.password.clone()]
+    }
+
+    pub fn enable_tls(&mut self) {
+        self.use_tls = true;
     }
 
     /// Creates a new Engine instance from a Montycat URI.
@@ -88,7 +94,7 @@ impl Engine {
     ///
     /// Returns MontycatClientError if the URI is invalid or missing required components
     ///
-    pub fn from_uri(uri: &str) -> Result<Arc<Self>, MontycatClientError> {
+    pub fn from_uri(uri: &str) -> Result<Self, MontycatClientError> {
 
         if !uri.starts_with("montycat://") {
             return Err(MontycatClientError::ClientGenericError("URI must start with montycat://".into()));
@@ -115,12 +121,13 @@ impl Engine {
             if p.is_empty() { None } else { Some(p.to_string()) }
         });
 
-        let connection: Arc<Engine> = Self::new(
+        let connection: Engine = Self::new(
             host.to_string(),
             port,
             username.to_string(),
             password.to_string(),
             store,
+            false,
         );
 
         Ok(connection)
@@ -152,6 +159,7 @@ impl Engine {
                 request.byte_down()?.as_slice(),
                 None,
                 None,
+                self.use_tls,
             ).await?;
 
             Ok(response)
@@ -191,6 +199,7 @@ impl Engine {
                 request.byte_down()?.as_slice(),
                 None,
                 None,
+                self.use_tls,
             ).await?;
 
             Ok(response)
@@ -213,8 +222,18 @@ impl Engine {
     ///
     pub async fn get_structure_available(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
+        let command: Vec<String> = {
+            if let Some(part) = self.store.as_ref().map(|s| vec!["store".into(), s.clone()]) {
+                let mut cmd = vec!["get-structure-available".into()];
+                cmd.extend(part);
+                cmd
+            } else {
+                vec!["get-structure-available".into()]
+            }
+        };
+
         let request: Req = Req::new_raw_command(
-            vec!["get-structure-available".into()],
+            command,
             vec![self.username.clone(), self.password.clone()]
         );
 
@@ -224,6 +243,7 @@ impl Engine {
             request.byte_down()?.as_slice(),
             None,
             None,
+            self.use_tls,
         ).await?;
 
         Ok(response)
@@ -257,6 +277,7 @@ impl Engine {
             request.byte_down()?.as_slice(),
             None,
             None,
+            self.use_tls,
         ).await?;
 
         Ok(response)
@@ -293,6 +314,7 @@ impl Engine {
             request.byte_down()?.as_slice(),
             None,
             None,
+            self.use_tls,
         ).await?;
 
         Ok(response)
@@ -330,6 +352,7 @@ impl Engine {
             request.byte_down()?.as_slice(),
             None,
             None,
+            self.use_tls,
         ).await?;
 
         Ok(response)
@@ -404,6 +427,7 @@ impl Engine {
             request.byte_down()?.as_slice(),
             None,
             None,
+            self.use_tls,
         ).await?;
 
         Ok(response)
@@ -477,6 +501,7 @@ impl Engine {
             request.byte_down()?.as_slice(),
             None,
             None,
+            self.use_tls,
         ).await?;
 
         Ok(response)

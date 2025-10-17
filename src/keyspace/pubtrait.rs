@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap};
 use crate::{
     Limit, MontycatClientError, engine::{structure::Engine, utils::send_data}, request::{
         store_request::structure::StoreRequestClient,
@@ -14,9 +14,9 @@ where Self: Sized + Send + Sync
 
 {
 
-    fn new(name: &str, engine: Arc<Engine>) -> Arc<Self> where Self: Sized;
+    fn new(name: &str, engine: &Engine) -> Self where Self: Sized;
 
-    fn get_engine(&self) -> Arc<Engine>;
+    fn get_engine(&self) -> Engine;
     fn get_name(&self) -> &str;
     fn get_persistent(&self) -> bool;
     fn get_distributed(&self) -> bool;
@@ -39,10 +39,11 @@ where Self: Sized + Send + Sync
     ///
     async fn remove_keyspace(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "remove-keyspace".into(),
@@ -54,7 +55,7 @@ where Self: Sized + Send + Sync
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -129,11 +130,12 @@ where Self: Sized + Send + Sync
             key = convert_custom_key(custom_key_unwrapped);
         }
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "get_value".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -152,7 +154,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -208,11 +210,12 @@ where Self: Sized + Send + Sync
             key = convert_custom_key(custom_key_unwrapped);
         }
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "delete_key".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -228,7 +231,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -286,11 +289,12 @@ where Self: Sized + Send + Sync
             key = convert_custom_key(custom_key_unwrapped);
         }
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "list_all_depending_keys".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -306,7 +310,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -347,11 +351,12 @@ where Self: Sized + Send + Sync
 
         let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "get_bulk".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -370,7 +375,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -414,11 +419,12 @@ where Self: Sized + Send + Sync
 
         let keys_processed: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "delete_bulk".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -434,7 +440,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -460,11 +466,12 @@ where Self: Sized + Send + Sync
     ///
     async fn get_len(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "get_len".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -479,7 +486,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -532,10 +539,11 @@ where Self: Sized + Send + Sync
         let schema_types_as_string: String = serde_json::to_string(&schema_types)
             .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
                 "enforce-schema".into(),
@@ -549,7 +557,7 @@ where Self: Sized + Send + Sync
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -584,10 +592,11 @@ where Self: Sized + Send + Sync
 
         let (_fields, schema_name) = schema_name;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
                 "remove-enforced-schema".into(),
@@ -600,7 +609,7 @@ where Self: Sized + Send + Sync
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -658,11 +667,12 @@ where Self: Sized + Send + Sync
 
         let bulk: HashMap<String, String> = merge_bulk_keys_values(bulk_keys_values, bulk_custom_keys_values).await?;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "update_value".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -678,7 +688,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -735,11 +745,12 @@ where Self: Sized + Send + Sync
             }
         };
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "lookup_keys".to_string();
 
         let filters_serialized: String = process_json_value(&filters)?;
@@ -771,7 +782,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -830,11 +841,12 @@ where Self: Sized + Send + Sync
             }
         };
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "lookup_values".to_string();
 
         let filters_serialized: String = process_json_value(&filters)?;
@@ -869,7 +881,7 @@ where Self: Sized + Send + Sync
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 

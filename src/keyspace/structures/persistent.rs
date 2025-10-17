@@ -13,19 +13,18 @@ use serde::Serialize;
 use crate::tools::functions::{process_bulk_values, process_json_value, process_value};
 use std::any::type_name;
 
-
 #[derive(Debug, Clone)]
 pub struct PersistentKeyspace {
     pub name: String,
     pub persistent: bool,
     pub distributed: bool,
-    pub engine: Arc<Engine>
+    pub engine: Engine
 }
 
 impl Keyspace for PersistentKeyspace {
 
-    fn get_engine(&self) -> Arc<Engine> {
-        Arc::clone(&self.engine)
+    fn get_engine(&self) -> Engine {
+        self.engine.clone()
     }
 
     fn get_name(&self) -> &str {
@@ -40,23 +39,50 @@ impl Keyspace for PersistentKeyspace {
         self.distributed
     }
 
-    fn new(name: &str,  engine: Arc<Engine>) -> Arc<Self> {
-        Arc::new(Self {
+    fn new(name: &str,  engine: &Engine) -> Self {
+        Self {
             name: name.to_owned(),
             persistent: true,
             distributed: false,
-            engine
-        })
+            engine: engine.clone()
+        }
     }
 }
 
 impl PersistentKeyspace {
 
+    /// Subscribes to changes in the persistent keyspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Optional key to subscribe to.
+    /// * `custom_key` - Optional custom key to subscribe to.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), MontycatClientError>` - An empty result or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let callback = Arc::new(|data: &Vec<u8>| {
+    ///   println!("Received data: {:?}", data);
+    /// });
+    ///
+    /// let res: Result<(), MontycatClientError> = keyspace.subscribe(Some("my_key".into()), None, callback).await;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
+    ///
     pub async fn subscribe(&self, key: Option<String>, custom_key: Option<String>, callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>) -> Result<(), MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let store: &String = engine.store.as_ref().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
 
         let key: Option<String> = {
             if key.is_some() && custom_key.is_some() {
@@ -67,7 +93,7 @@ impl PersistentKeyspace {
 
         let port: u16 = engine.port + 1;
         let request_bytes = fulfil_subscription_request(store, name, key, &engine.username, &engine.password)?;
-        let _response: Option<Vec<u8>> = send_data(&engine.host, port, request_bytes.as_slice(), Some(callback), None).await?;
+        let _response: Option<Vec<u8>> = send_data(&engine.host, port, request_bytes.as_slice(), Some(callback), None, use_tls).await?;
 
         Ok(())
 
@@ -99,12 +125,13 @@ impl PersistentKeyspace {
     ///
     pub async fn create_keyspace(&self, cache: Option<usize>, compression: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
 
-        let store = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "create-keyspace".into(),
@@ -119,7 +146,7 @@ impl PersistentKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         return Ok(response)
 
@@ -151,11 +178,12 @@ impl PersistentKeyspace {
     where
         T: Serialize + RuntimeSchema + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
         let mut schema: Option<String> = None;
         let value_to_send: String = process_value(value)?;
@@ -180,7 +208,7 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -216,11 +244,12 @@ impl PersistentKeyspace {
     where
         T: Serialize + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
 
@@ -237,7 +266,7 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -271,11 +300,12 @@ impl PersistentKeyspace {
     ///
     pub async fn get_keys(&self, limit: Option<Limit>, volumes: Option<Vec<String>>, latest_volume: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "get_keys".to_string();
 
         let limit_map: HashMap<String, usize> = match limit {
@@ -305,13 +335,13 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
     }
 
-        /// Updates a value in the keyspace.
+    /// Updates a value in the keyspace.
     ///
     /// # Arguments
     ///
@@ -348,11 +378,12 @@ impl PersistentKeyspace {
 
         let key: String = key.or(custom_key).ok_or(MontycatClientError::ClientNoValidInputProvided)?;
 
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "update_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
 
@@ -370,7 +401,7 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -404,11 +435,12 @@ impl PersistentKeyspace {
     where
         T: Serialize + RuntimeSchema + Send + 'static + Clone,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
 
         let (value_to_send, schema) = process_bulk_values(bulk_values).await?;
@@ -427,7 +459,7 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 
@@ -461,11 +493,12 @@ impl PersistentKeyspace {
     where
         T: Serialize + Send + 'static,
     {
-        let engine: Arc<Engine> = self.get_engine();
+        let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
         let command: String = "insert_value".to_string();
 
         let value_to_send: String = process_json_value(&bulk_values)?;
@@ -483,7 +516,7 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None).await?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
         Ok(response)
 

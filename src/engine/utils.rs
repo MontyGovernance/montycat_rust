@@ -2,9 +2,15 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::watch::Receiver;
 use tokio::time::timeout;
-// use serde_json::Value;
 use crate::MontycatClientError;
 use std::{sync::Arc, time::Duration};
+
+#[cfg(feature = "tls")]
+use tokio_rustls::rustls::{ClientConfig, RootCertStore};
+#[cfg(feature = "tls")]
+use tokio_rustls::TlsConnector;
+#[cfg(feature = "tls")]
+use rustls_pki_types::ServerName;
 
 const CHUNK_SIZE: usize = 1024 * 256;
 
@@ -14,9 +20,31 @@ pub async fn send_data(
     query: &[u8],
     callback: Option<Arc<dyn Fn(&Vec<u8>) + Send + Sync>>,
     stop_event: Option<&mut Receiver<bool>>,
+    use_tls: bool,
 ) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-    let mut stream = TcpStream::connect((host, port)).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+    let mut stream: TcpStream = TcpStream::connect((host, port)).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+
+    if use_tls {
+        #[cfg(feature = "tls")]
+        {
+            let mut root_cert_store = RootCertStore::empty();
+            root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+
+            let config = ClientConfig::builder()
+                .with_root_certificates(root_cert_store)
+                .with_no_client_auth();
+
+            let connector = TlsConnector::from(Arc::new(config));
+            let server_name = ServerName::try_from(host).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+            let tls_stream = connector.connect(server_name, stream).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+            stream = TcpStream::from_std(tls_stream.get_ref().try_clone().map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+        }
+        #[cfg(not(feature = "tls"))]
+        {
+            return Err(MontycatClientError::ClientEngineError("TLS feature not enabled".to_string()));
+        }
+    }
 
     stream.write_all(query).await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
     stream.flush().await.map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
@@ -81,28 +109,3 @@ pub async fn send_data(
 
     }
 }
-
-// Recursive JSON parser
-// fn recursive_parse_json(value: &Value) -> Result<Value, Box<dyn Error>> {
-//     Ok(match value {
-//         Value::Object(map) => {
-//             let mut new_map = serde_json::Map::new();
-//             for (k, v) in map {
-//                 new_map.insert(k.clone(), recursive_parse_json(v)?);
-//             }
-//             Value::Object(new_map)
-//         }
-//         Value::Array(arr) => {
-//             let new_arr: Vec<Value> = arr.iter().map(recursive_parse_json).collect::<Result<_, _>>()?;
-//             Value::Array(new_arr)
-//         }
-//         Value::String(s) => {
-//             if let Ok(inner) = serde_json::from_str::<Value>(s) {
-//                 recursive_parse_json(&inner)?
-//             } else {
-//                 Value::String(s.clone())
-//             }
-//         }
-//         _ => value.clone(),
-//     })
-// }
