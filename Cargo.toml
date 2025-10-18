@@ -3,6 +3,17 @@ name = "montycat"
 version = "0.1.0"
 edition = "2024"
 
+authors = ["MontyGovernance"]
+description = "Rust Client for Montycat - High-Performance NoSQL Database. The Fastest, Safest, and Most Elegant Database Client Ever Built in Rust."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+
+documentation = "https://docs.rs/montycat"
+homepage = "https://montygovernance.com"
+
+keywords = ["database", "nosql", "client", "rust", "async"]
+categories = ["database", "asynchronous", "network-programming", "api-bindings"]
+
 [dependencies]
 serde = {version = "1", features = ["derive"]}
 url = "2.5.7"
