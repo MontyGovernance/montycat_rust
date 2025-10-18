@@ -103,7 +103,7 @@ async fn main() {
     let parsed = MontycatResponse::<Option<Employee>>::parse_response(lookup_res_in_mem);
     println!("Lookup response: {:?}", parsed);
 
-    // Lookup values where name is Monty and Schema name is Employee
+    // Lookup values where name is Monty and Schema is Employee
     let lookup_res_pers = persistent.lookup_values_where(
         search_criteria,
         None,
