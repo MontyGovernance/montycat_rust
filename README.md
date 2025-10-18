@@ -1,46 +1,56 @@
-# 🚀 Rust Client for Montycat - High-Performance NoSQL Database
+# 🚀 Rust Client for Montycat - High-Performance NoSQL Database. The Fastest, Safest, and Most Elegant Database Client Ever Built in Rust.
 
-## MontyCat is a blazing-fast, fully asynchronous, and real-time Rust client for the MontyCat NoSQL database. Designed for modern applications that demand ultra-low latency, memory-safe operations, and full control over both persistent and in-memory keyspaces.
+# 🦀 What Is Montycat?
 
-## Whether you’re building analytics dashboards, real-time messaging, or structured data storage, MontyCat brings speed, reliability, and simplicity right into your Rust app.
+## Montycat isn’t just another database — it’s the future of data systems. Built entirely in Rust, Montycat redefines what performance, safety, and developer ergonomics mean in the NoSQL world. It fuses the best ideas from distributed data meshes, real-time streaming, and memory-safe system design — giving developers the only database engine that feels truly native to Rust. Montycat eliminates everything ugly about existing databases — no bloated SQL syntax, no fragile ORMs, no half-baked drivers. Just pure async power, memory safety, and a clean, structured API that works exactly the way a Rust developer expects.
 
-### Ultra-Fast Async Operations
-Fully asynchronous Rust API powered by tokio. Insert, update, query, and subscribe to keyspaces in real-time.
+## 🦾 Built Different — The Montycat Philosophy
 
-### Persistent & In-Memory Keyspaces
-Manage both ephemeral in-memory collections and durable persistent storage effortlessly.
+### Rust-native, not Rust-compatible. Every API, trait, and type is designed for idiomatic Rust, 100% safe code, not ported from a C library.
+### No Query Languages. No SQL, no JSONQL, no “whateverQL”. Just structured, safe function calls.
+### No Glue Code. Forget about ORM mappers or DSLs. Montycat works directly with your Rust structs.
+### No Nonsense. One binary protocol, one codepath, maximum performance.
+### Montycat isn’t a database “inspired by Rust.”
+### Montycat is Rust — in database form.
 
-### Dynamic Runtime Schemas
-Enforce, remove, and validate complex schemas on the fly using RuntimeSchema derive macros.
+## For installation of the Montycat Engine, see 👉 https://montygovernance.com
 
-### Flexible Querying
-Lookup keys with filters, bulk fetch values, and track key dependencies.
+## ⚡ Montycat Rust Client
 
-### Real-Time Subscriptions
-Subscribe to keyspace changes with callback-based streams for live updates.
+### The Montycat Rust Client is the official, fully asynchronous interface to the Montycat engine. It’s built for developers who value performance and beauty in equal measure — offering the cleanest API, lowest latency, and strongest safety guarantees in the industry. If you’ve ever struggled with clunky, unsafe, or inconsistent database clients, welcome home. Montycat is the only database client that looks and feels like Rust — not like a wrapper around legacy code.
 
-### Secure Connections
-Supports TLS for secure client-server communication.
+### Whether you’re building analytics dashboards, real-time messaging, or structured data storage, Montycat Client brings speed, reliability, and simplicity right into your Rust app.
+## Unlike ugly SQL/NoSQL systems that force rigid schemas, inconsistent APIs, or costly drivers, it is designed from the ground up for Rust — blending speed, safety, and simplicity into a unified experience.
 
-### JSON + Timestamp Support
-Seamless integration with serde_json::Value and MontyCat Timestamp.
+### Feature	Description
+- 🧩 `Async-First Design`	Built on Tokio for fully asynchronous networking and I/O — no blocking, no lag. Compatible with all major crates - Tokio, Actix, Warp, Axum, etc.
+- 💾 `Persistent + In-Memory Keyspaces` Combine ultra-fast in-memory stores with durable persistence — dynamically, within the same engine.
+- 🧬 `Runtime Schemas` Enforce and evolve schemas at runtime using #[derive(RuntimeSchema)]. Change data structures on the fly. Natively use Rust Structs as data schemas for your database!
+- 🔍 `Dynamic Querying` Effortlessly and organomically retrieve structured data without complex ORM overhead.
+- 🔄 `Real-Time Subscriptions` Subscribe to live keyspace or key updates with callback-based reactive streams. Ideal for dashboards and event-driven apps.
+- 🔐 `Secure by Default` No SQL, CQL, WhateverQL - no injection possible. Only structred tiny API. Native TLS support ensures encrypted and authenticated communication across distributed nodes.
+- 🕒 `Timestamped Data` Built-in timestamp support via Montycat::Timestamp for precise event tracking and data lineage.
+- 🧭 `Native Foreign Keys Supports` Pointer-based integrity, just like SQL foreign keys — without the performance overhead or complexity.
+- 🧠 `Schema-Aware Serialization` Fully compatible with serde and serde_json::Value for seamless encoding/decoding.
+- 🧱 `Client Memory-Safe and Zero-Copy` Written entirely in Rust — leveraging ownership and zero-cost abstractions for maximum efficiency and no GC overhead.
+- 🕹️ `Developer-Centric Ergonomics` Clean, composable APIs that make even complex data interactions intuitive. The easiest database client for Rust!
 
-### Lightweight, Developer-Friendly API
-Clear, Rust-native ergonomics without boilerplate.
+## Installation
 
 ```bash
 [dependencies]
-montycat = "0.1.0"
-montycat_serialization_derive = "0.1.6"
-tokio = { version = "1.44.1", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+montycat = { version = "1.0.1", features = ["tls"] }
+montycat_serialization_derive = "1.0.6"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
 ```
 
-Install engine ---->>
+## For installation of the Montycat Engine, see 👉 https://montygovernance.com
+
+## Quick Start
 
 ```rust
-use montycat::{Engine, InMemoryKeyspace, PersistentKeyspace, RuntimeSchema, Timestamp};
+use montycat::{Engine, InMemoryKeyspace, PersistentKeyspace, RuntimeSchema, MontycatResponse};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 
@@ -52,9 +62,6 @@ async fn main() {
     // Persistent and in-memory keyspaces
     let persistent = Arc::new(PersistentKeyspace::new("employees", &engine));
     let in_mem = Arc::new(InMemoryKeyspace::new("employeesInMem", &engine));
-
-    persistent.connect_engine(&engine);
-    in_mem.connect_engine(&engine);
 
     // Create keyspaces
     let (res_persist, res_mem) = tokio::join!(
@@ -70,14 +77,12 @@ async fn main() {
     struct Employee {
         id: u32,
         name: String,
-        created_at: Timestamp,
     }
 
     // Insert a value
     let employee = Employee {
         id: 1,
-        name: "Eugene".into(),
-        created_at: Timestamp::new("2023-10-10T10:10:10.000Z"),
+        name: "Monty".to_string(),
     };
 
     let insert_res_in_mem = in_mem.insert_value(employee, None).await;
@@ -86,5 +91,43 @@ async fn main() {
     let insert_res_pers = persistent.insert_value(employee, None).await;
     println!("Insert response: {:?}", insert_res_pers);
 
+    let search_criteria = serde_json::json!({
+        "name": "Monty"
+    });
+
+    // Lookup values
+    let lookup_res_in_mem = in_mem.lookup_values_where(search_criteria, None, false, true, false, None).await;
+    let parsed = MontycatResponse::<Option<Employee>>::parse_response(lookup_res_in_mem);
+    println!("Lookup response: {:?}", parsed);
+
+    let lookup_res_pers = persistent.lookup_values_where(search_criteria, None, false, true, false, None).await;
+    let parsed = MontycatResponse::<Option<Employee>>::parse_response(lookup_res_pers);
+    println!("Lookup response: {:?}", parsed);
+
 }
 ```
+
+## Want more?
+
+## 🧩 The Montycat Architecture
+### Hybrid Engine Design: Seamlessly switch between persistent and in-memory data.
+### Data Mesh by Design: Each keyspace is independently owned and domain-oriented.
+### Reactive Core: Native subscription support makes Montycat perfect for live apps and real-time analytics.
+
+## 🔐 Security & Reliability
+### TLS-enabled client-server communication
+### Encrypted authentication
+### Strong data isolation between keyspaces
+### Safe concurrency with Tokio + Rust guarantees
+
+## 🏁 Lastly
+### There are databases written in C, C++, Java, even Python. And then there’s Montycat — the only database that feels like Rust.
+### Every other client library tries to hide its ugliness behind ORMs and drivers. Montycat doesn’t need to — it’s beautiful by design, safe by default, and fast beyond reason.
+
+## 🏆 The Only Rust Database That Deserves Rust.
+### 100% Async
+### 100% Memory-Safe
+### 100% Rust
+### 0% Nonsense
+
+## For installation of the Montycat Engine, see 👉 https://montygovernance.com

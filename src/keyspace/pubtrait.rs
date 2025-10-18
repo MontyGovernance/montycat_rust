@@ -726,7 +726,7 @@ where Self: Sized + Send + Sync
     ///
     /// # Behavior
     ///
-    /// Sends a request to the server to lookup keys based on the provided filters and limit
+    /// Sends a request to the server to lookup keys based on the provided search_criteria and limit
     /// Returns the raw response bytes from the server
     ///
     /// # Examples
@@ -734,14 +734,14 @@ where Self: Sized + Send + Sync
     /// ```rust,no_run
     /// use serde_json::json;
     ///
-    /// let filters = json!({
+    /// let search_criteria = json!({
     ///     "field1": "value1",
     ///     "field2": { "num": 10 }
     /// });
     ///
     /// let limit = Some(Limit { start: 0, stop: 10 });
     ///
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_keys_where(filters, limit, Some("MySchema".to_string())).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_keys_where(search_criteria, limit, Some("MySchema".to_string())).await;
     ///
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     ///
@@ -754,7 +754,7 @@ where Self: Sized + Send + Sync
     /// * Returns MontycatClientError if there is an error with the engine
     /// * Returns MontycatClientError if there is an error parsing the response
     ///
-    async fn lookup_keys_where<T>(&self, filters: T, limit: Option<Limit>, schema_name: Option<(HashMap<&str, &str>, &str)>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    async fn lookup_keys_where<T>(&self, search_criteria: T, limit: Option<Limit>, schema_name: Option<(HashMap<&str, &str>, &str)>) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
     {
@@ -775,7 +775,7 @@ where Self: Sized + Send + Sync
         let use_tls: bool = engine.use_tls;
         let command: String = "lookup_keys".to_string();
 
-        let filters_serialized: String = process_json_value(&filters)?;
+        let filters_serialized: String = process_json_value(&search_criteria)?;
 
         let limit_map: HashMap<String, usize> = match limit {
             Some(lim) => {
@@ -831,14 +831,14 @@ where Self: Sized + Send + Sync
     /// ```rust,no_run
     /// use serde_json::json;
     ///
-    /// let filters = json!({
+    /// let search_criteria = json!({
     ///     "field1": "value1",
     ///    "field2": { "num": 10 }
     /// });
     ///
     /// let limit = Some(Limit { start: 0, stop: 10 });
     ///
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_values_where(filters, limit, true, true, false, Some("MySchema".to_string())).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_values_where(search_criteria, limit, true, true, false, Some("MySchema".to_string())).await;
     ///
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// ```
@@ -850,7 +850,7 @@ where Self: Sized + Send + Sync
     /// * Returns MontycatClientError if there is an error with the engine
     /// * Returns MontycatClientError if there is an error parsing the response
     ///
-    async fn lookup_values_where<T>(&self, filters: T, limit: Option<Limit>, with_pointers: bool, key_included: bool, pointers_metadata: bool, schema_name: Option<(HashMap<&str, &str>, &str)>) -> Result<Option<Vec<u8>>, MontycatClientError>
+    async fn lookup_values_where<T>(&self, search_criteria: T, limit: Option<Limit>, with_pointers: bool, key_included: bool, pointers_metadata: bool, schema_name: Option<(HashMap<&str, &str>, &str)>) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
     {
@@ -871,7 +871,7 @@ where Self: Sized + Send + Sync
         let use_tls: bool = engine.use_tls;
         let command: String = "lookup_values".to_string();
 
-        let filters_serialized: String = process_json_value(&filters)?;
+        let filters_serialized: String = process_json_value(&search_criteria)?;
 
         let limit_map: HashMap<String, usize> = match limit {
             Some(lim) => {
