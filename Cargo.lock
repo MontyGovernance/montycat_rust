@@ -280,6 +280,7 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash",
+ "serde",
 ]
 
 [[package]]
@@ -507,8 +508,9 @@ dependencies = [
 
 [[package]]
 name = "montycat_serialization_derive"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
+ "hashbrown",
  "proc-macro2",
  "quote",
  "rmp-serde",
