@@ -10,12 +10,11 @@ pub mod traits;
 pub use traits::RuntimeSchema;
 pub use engine::structure::{Engine, ValidPermissions};
 pub use errors::MontycatClientError;
-pub use response::structure::MontycatResponse;
+pub use response::structure::{MontycatResponse, MontycatStreamResponse};
 pub use keyspace::{
     structures::{
         inmemory::InMemoryKeyspace,
         persistent::PersistentKeyspace
     },
-    pubtrait::{Keyspace}
 };
 pub use tools::structure::{Pointer, Timestamp, Limit};

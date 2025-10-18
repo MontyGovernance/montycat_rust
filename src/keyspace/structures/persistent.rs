@@ -13,6 +13,19 @@ use serde::Serialize;
 use crate::tools::functions::{process_bulk_values, process_json_value, process_value};
 use std::any::type_name;
 
+/// Represents a persistent keyspace in the Montycat database.
+/// 
+/// # Fields
+/// - `name`: The name of the keyspace.
+/// - `persistent`: A boolean indicating if the keyspace is persistent.
+/// - `distributed`: A boolean indicating if the keyspace is distributed.
+/// - `engine`: An instance of the `Engine` struct used for database operations.
+/// 
+/// # Examples
+/// ```rust,no_run
+/// let keyspace: PersistentKeyspace = PersistentKeyspace::new("my_keyspace", &engine);
+/// ```
+///
 #[derive(Debug, Clone)]
 pub struct PersistentKeyspace {
     pub name: String,
@@ -23,23 +36,63 @@ pub struct PersistentKeyspace {
 
 impl Keyspace for PersistentKeyspace {
 
+    /// Retrieves the engine associated with the keyspace.
+    ///
+    /// # Returns
+    /// - `Engine`: The engine instance.
+    /// 
     fn get_engine(&self) -> Engine {
         self.engine.clone()
     }
 
+    /// Retrieves the name of the keyspace.
+    ///
+    /// # Returns
+    /// - `&str`: The name of the keyspace.
+    ///
     fn get_name(&self) -> &str {
         &self.name
     }
 
+    /// Checks if the keyspace is persistent.
+    /// 
+    /// # Returns
+    /// - `bool`: True if the keyspace is persistent, false otherwise.
+    /// 
     fn get_persistent(&self) -> bool {
         self.persistent
     }
 
+    /// Checks if the keyspace is distributed.
+    /// 
+    /// # Returns
+    /// - `bool`: True if the keyspace is distributed, false otherwise.
+    /// 
+    /// # Notes
+    /// In Development
+    ///
     fn get_distributed(&self) -> bool {
         self.distributed
     }
+}
 
-    fn new(name: &str,  engine: &Engine) -> Self {
+impl PersistentKeyspace {
+
+    /// Creates a new PersistentKeyspace instance.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the keyspace.
+    /// * `engine` - A reference to the Engine instance.
+    ///
+    /// # Returns
+    /// * `PersistentKeyspace` - A new instance of PersistentKeyspace.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// let keyspace: PersistentKeyspace = PersistentKeyspace::new("my_keyspace", &engine);
+    /// ```
+    ///
+    pub fn new(name: &str,  engine: &Engine) -> Self {
         Self {
             name: name.to_owned(),
             persistent: true,
@@ -47,9 +100,6 @@ impl Keyspace for PersistentKeyspace {
             engine: engine.clone()
         }
     }
-}
-
-impl PersistentKeyspace {
 
     /// Subscribes to changes in the persistent keyspace.
     ///

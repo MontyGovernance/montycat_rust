@@ -1,5 +1,19 @@
 use serde::{Deserialize, Serialize};
 
+/// Represents various client-side errors that can occur in the Montycat Rust client.
+/// 
+/// # Variants
+/// - `ClientEngineError(String)` : Represents errors related to the client engine.
+/// - `ClientValueParsingError(String)` : Represents errors that occur during value parsing.
+/// - `ClientGenericError(String)` : Represents generic client errors.
+/// - `ClientSelectedBothKeyAndCustomKey` : Error when both key and custom key
+/// - `ClientSelectedBothPointersValueAndMetadata` : Error when both pointers value and metadata are selected.
+/// - `ClientStoreNotSet` : Error when the store is not set in the engine
+/// - `ClientNoValidInputProvided` : Error when no valid input is provided.
+/// - `ClientAsyncRuntimeError(String)` : Represents errors related to the async runtime.
+/// - `ClientUnsupportedFieldType(String)` : Error for unsupported field types.
+/// - `ClientMultipleSchemasFound` : Error when multiple schemas are found in bulk values.
+/// 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MontycatClientError {
     ClientEngineError(String),
@@ -15,6 +29,11 @@ pub enum MontycatClientError {
 }
 
 impl MontycatClientError {
+    /// Retrieves the error message associated with the MontycatClientError.
+    /// 
+    /// # Returns
+    /// - `String` : The error message.
+    ///
     pub fn message(&self) -> String {
         match self {
             MontycatClientError::ClientEngineError(err) => err.to_owned(),

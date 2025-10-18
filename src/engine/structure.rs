@@ -3,6 +3,20 @@ use url::Url;
 use crate::{errors::MontycatClientError, request::structure::Req};
 use super::utils::send_data;
 
+/// Valid permissions for granting or revoking access.
+/// Read: Read-only access.
+/// Write: Write-only access.
+/// All: Full access (read and write).
+///
+/// Examples
+///
+/// ```rust
+/// use montycat::engine::structure::ValidPermissions;
+/// let read_permission = ValidPermissions::Read;
+/// let write_permission = ValidPermissions::Write;
+/// let all_permission = ValidPermissions::All;
+/// ```
+///
 pub enum ValidPermissions {
     Read,
     Write,
@@ -19,6 +33,31 @@ impl ValidPermissions {
     }
 }
 
+/// Represents the Montycat engine configuration and connection details.
+/// 
+/// # Fields
+/// 
+/// - `host`: The hostname or IP address of the Montycat server.
+/// - `port`: The port number of the Montycat server.
+/// - `username`: The username for authentication.
+/// - `password`: The password for authentication.
+/// - `store`: An optional store name to connect to.
+/// - `use_tls`: A boolean indicating whether to use TLS for the connection.
+///
+/// # Examples
+/// ```rust
+/// use montycat::engine::structure::Engine;
+/// let engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), Some("mystore".into()), false);
+/// ```
+///
+/// # Errors
+/// This struct does not return errors. However, ensure that the provided parameters are valid.
+///
+/// # Notes
+/// 
+/// If `use_tls` is set to true, the connection will be established using TLS encryption.
+/// You have to enable the `tls` feature in Cargo.toml for TLS support.
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
     pub host: String,
@@ -66,10 +105,29 @@ impl Engine {
         }
     }
 
-    pub fn get_credentials(&self) -> Vec<String> {
+    pub(crate) fn get_credentials(&self) -> Vec<String> {
         vec![self.username.clone(), self.password.clone()]
     }
 
+    /// Enables TLS for the engine connection.
+    ///
+    /// This method sets the `use_tls` field to true, indicating that the connection
+    /// should be established using TLS.
+    /// 
+    /// # Examples
+    ///
+    /// ```
+    /// let mut engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), None, false);
+    /// engine.enable_tls();
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// If `use_tls` is set to true, the connection will be established using TLS encryption.
+    /// You have to enable the `tls` feature in Cargo.toml for TLS support.
+    /// If you are inside multithreaded context, ensure to use synchronization primitives
+    /// as this method mutably borrows the Engine instance. Arc<Mutex<Engine>> or Arc<RwLock<Engine>> is recommended.
+    ///
     pub fn enable_tls(&mut self) {
         self.use_tls = true;
     }
@@ -359,30 +417,30 @@ impl Engine {
 
     }
 
-        /// Grants permissions to an owner on a store and optionally specific keyspaces.
-        ///
-        /// # Arguments
-        ///
-        /// * `username` - The username of the owner to grant permissions to
-        /// * `store` - The store to grant permissions on. If None, uses the store set in the engine.
-        /// * `permission` - The permission to grant (Read, Write, All)
-        /// * `keyspaces` - Optional vector of keyspace names to limit the permissions to
-        ///
-        /// # Returns
-        ///
-        /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error
-        ///
-        /// # Examples
-        ///
-        /// ```rust,no_run
-        /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
-        /// let response = engine.grant_to("new_owner", ValidPermissions::All, None, None).await;
-        /// ```
-        ///
-        /// # Errors
-        ///
-        /// Returns MontycatClientError if there is a communication error.
-        ///
+    /// Grants permissions to an owner on a store and optionally specific keyspaces.
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - The username of the owner to grant permissions to
+    /// * `store` - The store to grant permissions on. If None, uses the store set in the engine.
+    /// * `permission` - The permission to grant (Read, Write, All)
+    /// * `keyspaces` - Optional vector of keyspace names to limit the permissions to
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
+    /// let response = engine.grant_to("new_owner", ValidPermissions::All, None, None).await;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns MontycatClientError if there is a communication error.
+    ///
     pub async fn grant_to(
         &self,
         username: &str,
@@ -449,12 +507,13 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
     /// let response = engine.revoke_from("new_owner", ValidPermissions::All, None, None).await;
     /// ```
     ///
     /// # Errors
+    ///
     /// Returns MontycatClientError if there is a communication error.
     ///
     pub async fn revoke_from(

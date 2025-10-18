@@ -10,33 +10,82 @@ use crate::tools::functions::{process_bulk_values, process_json_value, process_v
 use serde::Serialize;
 use std::any::type_name;
 
+/// Represents an in-memory keyspace in the Montycat database.
+///
+/// # Fields
+/// - `name`: The name of the keyspace.
+/// - `persistent`: A boolean indicating if the keyspace is persistent.
+/// - `distributed`: A boolean indicating if the keyspace is distributed.
+/// - `engine`: The Montycat engine instance associated with the keyspace.
+///
 #[derive(Debug, Clone)]
 pub struct  InMemoryKeyspace {
-    pub name: String,
-    pub persistent: bool,
-    pub distributed: bool,
-    pub engine: Engine
+    name: String,
+    persistent: bool,
+    distributed: bool,
+    engine: Engine
 }
 
 impl Keyspace for InMemoryKeyspace {
 
+    /// Retrieves the associated Montycat engine.
+    ///
+    /// # Returns
+    /// - `Engine`: The Montycat engine instance.
+    ///
     fn get_engine(&self) -> Engine {
         self.engine.clone()
     }
-
+    /// Retrieves the name of the keyspace.
+    ///
+    /// # Returns
+    /// - `&str`: The name of the keyspace.
+    ///
     fn get_name(&self) -> &str {
         &self.name
     }
 
+    /// Checks if the keyspace is persistent.
+    /// 
+    /// # Returns
+    /// - `bool`: True if the keyspace is persistent, false otherwise.
+    ///
     fn get_persistent(&self) -> bool {
         self.persistent
     }
 
+    /// Checks if the keyspace is distributed.
+    /// 
+    /// # Returns
+    /// - `bool`: True if the keyspace is distributed, false otherwise.
+    /// 
+    /// # Notes
+    /// In Development
+    ///
     fn get_distributed(&self) -> bool {
         self.distributed
     }
 
-    fn new(name: &str, engine: &Engine) -> Self {
+}
+
+impl InMemoryKeyspace {
+
+    /// Creates a new instance of `InMemoryKeyspace`.
+    /// 
+    /// # Arguments
+    /// - `name: &str`: The name of the keyspace.
+    /// - `engine: &Engine`: A reference to the Montycat engine.
+    ///
+    /// # Returns
+    /// - `InMemoryKeyspace`: A new instance of `InMemoryKeyspace`.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// let keyspace: InMemoryKeyspace = InMemoryKeyspace::new("test_keyspace", &engine);
+    /// ```
+    ///
+    pub fn new(name: &str, engine: &Engine) -> Self {
         Self {
             name: name.to_owned(),
             persistent: false,
@@ -44,10 +93,6 @@ impl Keyspace for InMemoryKeyspace {
             engine: engine.clone()
         }
     }
-
-}
-
-impl InMemoryKeyspace {
 
     /// Creates a new keyspace in the Montycat database.
     ///

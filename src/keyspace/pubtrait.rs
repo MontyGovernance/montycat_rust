@@ -8,14 +8,36 @@ use crate::{
 use async_trait::async_trait;
 use serde::{Serialize};
 
+/// PubTrait defines the public interface for keyspace operations.
+///
+/// # Trait Methods
+/// - `new`: Creates a new instance of the keyspace.
+/// - `get_engine`: Retrieves the associated engine.
+/// - `get_name`: Retrieves the name of the keyspace.
+/// - `get_persistent`: Checks if the keyspace is persistent.
+/// - `get_distributed`: Checks if the keyspace is distributed.
+/// - `remove_keyspace`: Removes the keyspace from the store.
+/// - `get_value`: Retrieves a value by key or custom key.
+/// - `delete_key`: Deletes a value by key or custom key.
+/// - `list_all_depending_keys`: Lists all keys that depend on a given key or custom key.
+/// - `get_bulk`: Retrieves multiple values by a list of keys.
+/// - `delete_bulk`: Deletes multiple values by a list of keys.
+/// - `get_len`: Gets the length of the keyspace.
+/// - `enforce_schema`: Enforces a schema on the keyspace.
+/// - `remove_enforced_schema`: Removes an enforced schema from the keyspace.
+/// - `update_bulk`: Updates multiple key-value pairs in the keyspace.
+///
+/// # Errors
+/// - `MontycatClientError::ClientStoreNotSet`: If the store is not set in the engine.
+/// - `MontycatClientError::ClientEngineError`: If there is an error with the engine.
+/// - `MontycatClientError::ClientValueParsingError`: If there is an error parsing the response.
+/// - `MontycatClientError::ClientSelectedBothKeyAndCustomKey`: If both key and custom_key are provided.
+/// - `MontycatClientError::ClientNoValidInputProvided`: If neither key nor custom_key are provided.
+/// - `MontycatClientError::ClientSelectedBothPointersValueAndMetadata`: If both with_pointers and pointers_metadata are true.
 #[async_trait]
 pub trait Keyspace
 where Self: Sized + Send + Sync
-
 {
-
-    fn new(name: &str, engine: &Engine) -> Self where Self: Sized;
-
     fn get_engine(&self) -> Engine;
     fn get_name(&self) -> &str;
     fn get_persistent(&self) -> bool;

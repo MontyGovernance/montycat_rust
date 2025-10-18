@@ -2,14 +2,20 @@ use crate::{errors::MontycatClientError};
 use crate::traits::RuntimeSchema;
 use serde::Serialize;
 use serde_json::{Value, Map};
-
 use crate::request::utis::functions::is_custom_type;
 use std::collections::HashSet;
 use std::{any::type_name};
 use rayon::prelude::*;
 
-
-pub fn process_json_value<T>(value: &T) -> Result<String, MontycatClientError>
+/// Processes a JSON-serializable value into a JSON string.
+/// 
+/// # Arguments
+/// - `value: &T` : A reference to the value to be serialized.
+///
+/// # Returns
+/// - `Result<String, MontycatClientError>` : The serialized JSON string or an error if serialization fails.
+///
+pub(crate) fn process_json_value<T>(value: &T) -> Result<String, MontycatClientError>
 where T: Serialize,
 {
     let value_to_send: String = simd_json::to_string(value)
@@ -18,7 +24,15 @@ where T: Serialize,
     Ok(value_to_send)
 }
 
-pub fn process_value<T>(value: T) -> Result<String, MontycatClientError>
+/// Processes a value into a JSON string, handling special fields for pointers and timestamps.
+/// 
+/// # Arguments
+/// - `value: T` : The value to be processed.
+/// 
+/// # Returns
+/// - `Result<String, MontycatClientError>` : The processed JSON string or an error if processing fails.
+///
+pub(crate) fn process_value<T>(value: T) -> Result<String, MontycatClientError>
 where
     T: Serialize + RuntimeSchema,
 {
@@ -95,8 +109,17 @@ where
     Ok(value_to_send)
 }
 
-pub fn define_type(field_type: &str) -> Result<&'static str, MontycatClientError> {
-    match  field_type.replace(' ', "").as_str() {
+/// Determines the Montycat field type for a given Rust type name.
+/// 
+/// # Arguments
+/// * `field_type: &str` - The name of the Rust type.
+///
+/// # Returns
+/// * `Result<&'static str, MontycatClientError>` - The corresponding Montycat field type or an error if the type is unsupported.
+///
+pub(crate) fn define_type(field_type: &str) -> Result<&'static str, MontycatClientError> {
+
+    match field_type.replace(' ', "").as_str() {
         // Strings
         "String" | "&str" | "char" => Ok("String"),
 
@@ -118,10 +141,6 @@ pub fn define_type(field_type: &str) -> Result<&'static str, MontycatClientError
         s if s.starts_with("HashSet<") => Ok("Array"),
         s if s.starts_with("BTreeSet<") => Ok("Array"),
 
-        // Option / Result
-        s if s.starts_with("Option<") => Ok("Option"),
-        s if s.starts_with("Result<") => Ok("Result"),
-
         // Custom types
         "Pointer" => Ok("Pointer"),
         "Timestamp" => Ok("Timestamp"),
@@ -131,7 +150,15 @@ pub fn define_type(field_type: &str) -> Result<&'static str, MontycatClientError
     }
 }
 
-pub async fn process_bulk_values<T>(values: Vec<T>) -> Result<(String, Option<String>), MontycatClientError>
+/// Processes a bulk of JSON-serializable values into a single JSON string and optional schema.
+/// 
+/// # Arguments
+/// - `values: Vec<T>` : A vector of values to be processed.
+///
+/// # Returns
+/// - `Result<(String, Option<String>), MontycatClientError>` : A result containing the processed JSON string and an optional schema, or an error if processing fails.
+///
+pub(crate) async fn process_bulk_values<T>(values: Vec<T>) -> Result<(String, Option<String>), MontycatClientError>
 where T: Serialize + RuntimeSchema + Send + 'static,
 {
     let res: (String, Option<String>) = tokio::task::spawn_blocking(move || {

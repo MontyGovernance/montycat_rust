@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use crate::errors::MontycatClientError;
 use simd_json;
 
+/// Represents a response from the Montycat server.
+/// 
+/// # Fields
+/// - `status: bool` : Indicates if the request was successful.
+/// - `payload: T` : The payload of the response, generic over type T.
+/// - `error: Option<String>` : An optional error message if the request failed.
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MontycatResponse<T = serde_json::Value> {
     pub status: bool,
@@ -11,6 +18,14 @@ pub struct MontycatResponse<T = serde_json::Value> {
     pub error: Option<String>,
 }
 
+/// Represents a streaming response from the Montycat server.
+/// 
+/// # Fields
+/// - `message: Option<String>` : An optional message from the server.
+/// - `status: bool` : Indicates if the request was successful.
+/// - `payload: T` : The payload of the response, generic over type T.
+/// - `error: Option<String>` : An optional error message if the request failed.
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MontycatStreamResponse<T = serde_json::Value> {
     pub message: Option<String>,

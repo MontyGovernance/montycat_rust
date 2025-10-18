@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+/// Trait for runtime schema operations.
+///
 pub trait RuntimeSchema {
 
     fn pointer_and_timestamp_fields(&self) -> Vec<(&'static str, &'static str)>;
