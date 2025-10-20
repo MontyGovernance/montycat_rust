@@ -52,7 +52,7 @@ serde = {version = "1", features = ["derive"]}
 ## Quick Start
 
 ```rust
-use montycat::{Engine, InMemoryKeyspace, PersistentKeyspace, RuntimeSchema, MontycatResponse};
+use montycat::{Engine, InMemoryKeyspace, PersistentKeyspace, RuntimeSchema, MontycatResponse, Keyspace};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 

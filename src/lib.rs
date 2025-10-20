@@ -12,6 +12,7 @@ pub use engine::structure::{Engine, ValidPermissions};
 pub use errors::MontycatClientError;
 pub use response::structure::{MontycatResponse, MontycatStreamResponse};
 pub use keyspace::{
+    pubtrait::Keyspace,
     structures::{
         inmemory::InMemoryKeyspace,
         persistent::PersistentKeyspace
