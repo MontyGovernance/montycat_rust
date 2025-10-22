@@ -1,5 +1,9 @@
 # 🚀 Rust Client for Montycat - High-Performance NoSQL Database. The Fastest, Safest, and Most Elegant Database Client Ever Built in Rust.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/montycat.svg)](https://crates.io/crates/montycat)
+[![Docs.rs](https://docs.rs/montycat/badge.svg)](https://docs.rs/montycat)
+
 ## 🦀 What Is Montycat?
 
 Montycat isn’t just another database — it’s the future of data systems. Built entirely in Rust, Montycat redefines what performance, safety, and developer ergonomics mean in the NoSQL world. It fuses the best ideas from distributed data meshes, real-time streaming, and memory-safe system design — giving developers the only database engine that feels truly native to Rust. Montycat eliminates everything ugly about existing databases — no bloated SQL syntax, no fragile ORMs, no half-baked drivers. Just pure async power, memory safety, and a clean, structured API that works exactly the way a Rust developer expects.
