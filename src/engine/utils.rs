@@ -143,8 +143,13 @@ pub(crate) async fn send_data(
         loop {
 
             if let Some(ref stop) = stop_event {
-                if *stop.borrow() {
-                    break;
+                // if *stop.borrow() {
+                //     break;
+                // }
+                if let Ok(true) = stop.has_changed() {
+                    if stop.borrow().clone() {
+                        break;
+                    }
                 }
             }
 

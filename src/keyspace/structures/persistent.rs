@@ -1,5 +1,5 @@
 use crate::engine::structure::Engine;
-use crate::request::utis::functions::fulfil_subscription_request;
+use crate::request::utis::functions::{convert_custom_key, fulfil_subscription_request};
 use crate::tools::structure::Limit;
 use std::sync::Arc;
 use super::super::pubtrait::Keyspace;
@@ -127,27 +127,72 @@ impl PersistentKeyspace {
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
     /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
     ///
-    pub async fn subscribe(&self, key: Option<String>, custom_key: Option<String>, callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>) -> Result<(), MontycatClientError> {
+    // pub async fn subscribe(&self, key: Option<String>, custom_key: Option<String>, callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>) -> Result<(), MontycatClientError> {
 
-        let engine: Engine = self.get_engine();
-        let name: &str = self.get_name();
-        let store: &String = engine.store.as_ref().ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
+    //     let engine: Engine = self.get_engine();
+    //     let name: &str = self.get_name();
+    //     let store: &String = engine.store.as_ref().ok_or(MontycatClientError::ClientStoreNotSet)?;
+    //     let use_tls: bool = engine.use_tls;
 
-        let key: Option<String> = {
+    //     let key: Option<String> = {
+    //         if key.is_some() && custom_key.is_some() {
+    //             return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
+    //         }
+    //         key.or(custom_key)
+    //     };
+
+    //     let port: u16 = engine.port + 1;
+    //     let request_bytes = fulfil_subscription_request(store, name, key, &engine.username, &engine.password)?;
+    //     let _response: Option<Vec<u8>> = send_data(&engine.host, port, request_bytes.as_slice(), Some(callback), None, use_tls).await?;
+
+    //     Ok(())
+
+    // }
+    pub async fn subscribe(
+        &self,
+        key: Option<String>,
+        custom_key: Option<String>,
+        callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>
+    ) -> Result<tokio::sync::watch::Sender<bool>, MontycatClientError> {
+
+        let (stop_tx, mut stop_rx) = tokio::sync::watch::channel::<bool>(false);
+
+        let engine = self.get_engine();
+        let name = self.get_name();
+        let store = engine.store.as_ref().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls = engine.use_tls;
+
+        let key = {
             if key.is_some() && custom_key.is_some() {
                 return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
             }
             key.or(custom_key)
         };
 
-        let port: u16 = engine.port + 1;
-        let request_bytes = fulfil_subscription_request(store, name, key, &engine.username, &engine.password)?;
-        let _response: Option<Vec<u8>> = send_data(&engine.host, port, request_bytes.as_slice(), Some(callback), None, use_tls).await?;
+        let port = engine.port + 1;
+        let request_bytes = fulfil_subscription_request(
+            store,
+            name,
+            key,
+            &engine.username,
+            &engine.password
+        )?;
 
-        Ok(())
+        let host = engine.host.clone();
+        tokio::spawn(async move {
+            let _ = send_data(
+                &host,
+                port,
+                request_bytes.as_slice(),
+                Some(callback),
+                Some(&mut stop_rx),
+                use_tls
+            ).await;
+        });
 
+        Ok(stop_tx)
     }
+
 
     /// Creates a new persistent keyspace in the Montycat database.
     ///
@@ -202,6 +247,54 @@ impl PersistentKeyspace {
 
     }
 
+    /// Updates the cache size and compression settings of the persistent keyspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `cache` - Optional new cache size for the keyspace. If None, the cache size remains unchanged.
+    /// * `compression` - Optional new compression setting for the keyspace. If None, the compression setting remains unchanged.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace
+    /// .update_cache_and_compression(Some(2048), Some(false)).await;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
+    ///
+    pub async fn update_cache_and_compression(&self, cache: Option<usize>, compression: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
+
+        let engine: Engine = self.get_engine();
+        let name: &str = self.get_name();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
+
+        let vec: Vec<String> = vec![
+            "update-cache-compression".into(),
+            "store".into(), store,
+            "keyspace".into(), name.to_owned(),
+            "cache".into(), cache.map_or("0".into(), |c| c.to_string()),
+            "compression".into(), compression.map_or("n".into(), |c| if c { "y".into() } else { "n".into() }),
+        ];
+
+        let credentials: Vec<String> = engine.get_credentials();
+        let query: Req = Req::new_raw_command(vec, credentials);
+        let bytes: Vec<u8> = query.byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
+
+        return Ok(response)
+
+    }
+
     /// Inserts a value into the persistent keyspace.
     ///
     /// # Arguments
@@ -209,6 +302,7 @@ impl PersistentKeyspace {
     /// * `value` - The value to be inserted into the keyspace. It must implement `Serialize` and `MontycatSchema`.
     ///
     /// # Returns
+    ///
     /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
     ///
     /// # Examples
@@ -224,17 +318,17 @@ impl PersistentKeyspace {
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
     /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
-    pub async fn insert_value<T>(&self, value: T) -> Result<Option<Vec<u8>>, MontycatClientError>
+    pub async fn insert_value<T>(&self, custom_key: Option<String>, value: T) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + RuntimeSchema + Send + 'static,
     {
+        let mut key: Option<String> = None;
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "insert_value".to_string();
         let mut schema: Option<String> = None;
         let value_to_send: String = process_value(value)?;
 
@@ -243,6 +337,12 @@ impl PersistentKeyspace {
         if let Some(custom_type_name) = is_custom_type(type_name_retrieved) {
             schema = Some(custom_type_name.to_owned());
         };
+
+        if let Some(custom_key_str) = &custom_key {
+            key = Some(convert_custom_key(custom_key_str));
+        }
+
+        let command: String = if key.is_none() { "insert_value".to_string() } else { "insert_custom_key_value".to_string() };
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             schema,
@@ -254,6 +354,62 @@ impl PersistentKeyspace {
             distributed,
             value: value_to_send,
             command,
+            key,
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
+
+        Ok(response)
+
+    }
+
+    /// Inserts a custom key into the persistent keyspace.
+    ///
+    /// # Arguments
+    //
+    /// * `custom_key` - The custom key to be inserted into the keyspace.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response from the server or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_custom_key("my_custom_key".to_string()).await;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
+    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
+    ///
+    pub async fn insert_custom_key(&self, custom_key: String) -> Result<Option<Vec<u8>>, MontycatClientError>
+    {
+        let engine: Engine = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
+
+        let key: String = convert_custom_key(&custom_key);
+
+        let command: String = "insert_custom_key".to_string();
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            value: String::new(),
+            command,
+            key: Some(key),
             ..Default::default()
         };
 
@@ -290,18 +446,24 @@ impl PersistentKeyspace {
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
     /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
-    pub async fn insert_value_no_schema<T>(&self, value: T) -> Result<Option<Vec<u8>>, MontycatClientError>
+    pub async fn insert_value_no_schema<T>(&self, custom_key: Option<String>, value: T) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
     {
+        let mut key: Option<String> = None;
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
         let distributed: bool = self.get_distributed();
         let store: String = engine.store.clone().ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "insert_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
+
+        if let Some(custom_key_str) = &custom_key {
+            key = Some(convert_custom_key(custom_key_str));
+        }
+
+        let command: String = if key.is_none() { "insert_value".to_string() } else { "insert_custom_key_value".to_string() };
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             username: engine.username.clone(),
@@ -312,6 +474,7 @@ impl PersistentKeyspace {
             distributed,
             value: value_to_send,
             command,
+            key,
             ..Default::default()
         };
 
