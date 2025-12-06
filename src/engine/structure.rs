@@ -467,12 +467,11 @@ impl Engine {
             store.into(),
         ];
 
-        if let Some(ks_vec) = keyspaces {
-            if !ks_vec.is_empty() {
+        if let Some(ks_vec) = keyspaces
+            && !ks_vec.is_empty() {
                 vec.push("keyspaces".into());
-                vec.push(ks_vec.join(",").into());
+                vec.push(ks_vec.join(","));
             }
-        }
 
         let request: Req = Req::new_raw_command(
             vec,
@@ -542,12 +541,11 @@ impl Engine {
                 store.into(),
             ];
 
-        if let Some(ks_vec) = keyspaces {
-            if !ks_vec.is_empty() {
+        if let Some(ks_vec) = keyspaces
+            && !ks_vec.is_empty() {
                 vec.push("keyspaces".into());
-                vec.push(ks_vec.join(",").into());
+                vec.push(ks_vec.join(","));
             }
-        }
 
         let request: Req = Req::new_raw_command(
             vec,

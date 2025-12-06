@@ -134,7 +134,7 @@ where Self: Sized + Send + Sync
     ///
     async fn get_value(&self, key: Option<&str>, custom_key: Option<&str>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
-        if !key.is_some() && !custom_key.is_some() {
+        if key.is_none() && custom_key.is_none() {
             return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
         }
 

@@ -134,7 +134,7 @@ impl InMemoryKeyspace {
         let bytes: Vec<u8> = query.byte_down()?;
         let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
-        return Ok(response)
+        Ok(response)
     }
 
     /// Inserts a value into the keyspace.
@@ -612,7 +612,7 @@ impl InMemoryKeyspace {
         let bytes: Vec<u8> = query.byte_down()?;
         let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
-        return Ok(response)
+        Ok(response)
 
     }
 
@@ -652,7 +652,7 @@ impl InMemoryKeyspace {
         let bytes: Vec<u8> = query.byte_down()?;
         let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
-        return Ok(response)
+        Ok(response)
 
     }
 
@@ -692,7 +692,7 @@ impl InMemoryKeyspace {
         let bytes: Vec<u8> = query.byte_down()?;
         let response: Option<Vec<u8>> = send_data(&engine.host, engine.port, bytes.as_slice(), None, None, use_tls).await?;
 
-        return Ok(response)
+        Ok(response)
 
     }
 

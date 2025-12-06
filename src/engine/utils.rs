@@ -146,11 +146,10 @@ pub(crate) async fn send_data(
                 // if *stop.borrow() {
                 //     break;
                 // }
-                if let Ok(true) = stop.has_changed() {
-                    if stop.borrow().clone() {
+                if let Ok(true) = stop.has_changed()
+                    && *stop.borrow() {
                         break;
                     }
-                }
             }
 
             let mut chunk = vec![0u8; CHUNK_SIZE];
