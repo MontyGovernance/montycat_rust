@@ -24,7 +24,7 @@ indexmap = { version = "2.12.0", features = ["serde"] }
 async-trait = "0.1.88"
 xxhash-rust = { version = "0.8.15", features = ["xxh32"]}
 rayon = "1.11.0"
-montycat_serialization_derive = { path = "../montycat_serialization_derive" }
+montycat_serialization_derive = "0.1.6"
 
 # Optional TLS
 tokio-rustls = { version = "0.26", optional = true }
