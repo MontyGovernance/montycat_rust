@@ -45,10 +45,16 @@ Montycat isn’t just another database — it’s the future of data systems. Bu
 
 ```bash
 [dependencies]
-montycat = { version = "1.0.1", features = ["tls"] }
+montycat = { version = "1.0.1"}
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 serde = {version = "1", features = ["derive"]}
+```
+
+## If using TLS 
+
+```bash
+montycat = { version = "1.0.1", features = ["tls"] }
 ```
 
 ## `For installation of the Montycat Engine, see 👉 https://montygovernance.com`
