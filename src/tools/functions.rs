@@ -117,37 +117,50 @@ where
 /// # Returns
 /// * `Result<&'static str, MontycatClientError>` - The corresponding Montycat field type or an error if the type is unsupported.
 ///
-pub(crate) fn define_type(field_type: &str) -> Result<&'static str, MontycatClientError> {
+pub(crate) fn define_type(field_type: &str) -> Result<(&'static str, bool), MontycatClientError> {
+    let cleaned = field_type.replace(' ', "");
 
-    match field_type.replace(' ', "").as_str() {
+    let mut nullable = false;
+
+    // Detect Option<T>
+    if let Some(inner) = cleaned.strip_prefix("Option<").and_then(|s| s.strip_suffix('>')) {
+        let inner_type = define_type(inner)?;
+        nullable = true;
+        return Ok((inner_type.0, nullable));
+    }
+
+    let ty = match cleaned.as_str() {
         // Strings
-        "String" | "&str" | "char" => Ok("String"),
+        "String" | "&str" | "char" => "String",
 
         // Numbers
         "i8" | "i16" | "i32" | "i64" | "i128"
         | "u8" | "u16" | "u32" | "u64" | "u128"
-        | "isize" | "usize" => Ok("Number"),
-
-        // Floating points
-        "f32" | "f64" => Ok("Float"),
+        | "isize" | "usize" | "f32" | "f64" => "Number",
 
         // Boolean
-        "bool" => Ok("Boolean"),
+        "bool" => "Boolean",
 
         // Collections
-        s if s.starts_with("Vec<") => Ok("Array"),
-        s if s.starts_with("HashMap<") => Ok("Object"),
-        s if s.starts_with("BTreeMap<") => Ok("Object"),
-        s if s.starts_with("HashSet<") => Ok("Array"),
-        s if s.starts_with("BTreeSet<") => Ok("Array"),
+        s if s.starts_with("Vec<") => "Array",
+        s if s.starts_with("HashSet<") => "Array",
+        s if s.starts_with("BTreeSet<") => "Array",
+
+        s if s.starts_with("HashMap<") => "Object",
+        s if s.starts_with("BTreeMap<") => "Object",
 
         // Custom types
-        "Pointer" => Ok("Pointer"),
-        "Timestamp" => Ok("Timestamp"),
+        "Pointer" => "Pointer",
+        "Timestamp" => "Timestamp",
 
-        // Fallback
-        _ => Err(MontycatClientError::ClientUnsupportedFieldType(field_type.to_owned())),
-    }
+        _ => {
+            return Err(
+                MontycatClientError::ClientUnsupportedFieldType(field_type.to_owned())
+            )
+        }
+    };
+
+    Ok((ty, nullable))
 }
 
 /// Processes a bulk of JSON-serializable values into a single JSON string and optional schema.

@@ -568,11 +568,11 @@ where Self: Sized + Send + Sync
 
         let (fields, schema_name) = schema_params;
 
-        let mut schema_types: HashMap<String, String> = HashMap::new();
+        let mut schema_types: HashMap<String, (&'static str, bool)> = HashMap::new();
 
         for (field_name, field_type) in fields.into_iter() {
             let type_def = define_type(field_type)?;
-            schema_types.insert(field_name.to_string(), type_def.to_string());
+            schema_types.insert(field_name.to_string(), type_def);
         }
 
         let schema_types_as_string: String = serde_json::to_string(&schema_types)
