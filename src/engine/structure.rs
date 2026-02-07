@@ -566,3 +566,238 @@ impl Engine {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== ValidPermissions Tests =====
+
+    #[test]
+    fn test_valid_permissions_read() {
+        let perm = ValidPermissions::Read;
+        assert_eq!(perm.as_str(), "read");
+    }
+
+    #[test]
+    fn test_valid_permissions_write() {
+        let perm = ValidPermissions::Write;
+        assert_eq!(perm.as_str(), "write");
+    }
+
+    #[test]
+    fn test_valid_permissions_all() {
+        let perm = ValidPermissions::All;
+        assert_eq!(perm.as_str(), "all");
+    }
+
+    // ===== Engine Tests =====
+
+    #[test]
+    fn test_engine_new() {
+        let engine = Engine::new(
+            "localhost".to_string(),
+            21210,
+            "testuser".to_string(),
+            "testpass".to_string(),
+            Some("teststore".to_string()),
+            false,
+        );
+
+        assert_eq!(engine.host, "localhost");
+        assert_eq!(engine.port, 21210);
+        assert_eq!(engine.username, "testuser");
+        assert_eq!(engine.password, "testpass");
+        assert_eq!(engine.store, Some("teststore".to_string()));
+        assert_eq!(engine.use_tls, false);
+    }
+
+    #[test]
+    fn test_engine_new_without_store() {
+        let engine = Engine::new(
+            "127.0.0.1".to_string(),
+            8080,
+            "user".to_string(),
+            "pass".to_string(),
+            None,
+            true,
+        );
+
+        assert_eq!(engine.host, "127.0.0.1");
+        assert_eq!(engine.port, 8080);
+        assert_eq!(engine.store, None);
+        assert_eq!(engine.use_tls, true);
+    }
+
+    #[test]
+    fn test_engine_from_uri_valid() {
+        let uri = "montycat://username:password@localhost:21210/mystore";
+        let engine = Engine::from_uri(uri).unwrap();
+
+        assert_eq!(engine.host, "localhost");
+        assert_eq!(engine.port, 21210);
+        assert_eq!(engine.username, "username");
+        assert_eq!(engine.password, "password");
+        assert_eq!(engine.store, Some("mystore".to_string()));
+        assert_eq!(engine.use_tls, false);
+    }
+
+    #[test]
+    fn test_engine_from_uri_without_store() {
+        let uri = "montycat://user:pass@127.0.0.1:8080";
+        let engine = Engine::from_uri(uri).unwrap();
+
+        assert_eq!(engine.host, "127.0.0.1");
+        assert_eq!(engine.port, 8080);
+        assert_eq!(engine.username, "user");
+        assert_eq!(engine.password, "pass");
+        assert_eq!(engine.store, None);
+    }
+
+    #[test]
+    fn test_engine_from_uri_with_special_characters() {
+        let uri = "montycat://user%40email:p%40ssw0rd@example.com:9999/my-store_123";
+        let engine = Engine::from_uri(uri).unwrap();
+
+        assert_eq!(engine.host, "example.com");
+        assert_eq!(engine.port, 9999);
+        // URL encoding is preserved in username/password from url crate
+        assert_eq!(engine.username, "user%40email");
+        assert_eq!(engine.password, "p%40ssw0rd");
+        assert_eq!(engine.store, Some("my-store_123".to_string()));
+    }
+
+    #[test]
+    fn test_engine_from_uri_invalid_scheme() {
+        let uri = "http://username:password@localhost:21210/mystore";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_from_uri_missing_username() {
+        let uri = "montycat://:password@localhost:21210/mystore";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_from_uri_missing_password() {
+        let uri = "montycat://username@localhost:21210/mystore";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_from_uri_missing_host() {
+        let uri = "montycat://username:password@:21210/mystore";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_from_uri_missing_port() {
+        let uri = "montycat://username:password@localhost/mystore";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_from_uri_invalid_port() {
+        let uri = "montycat://username:password@localhost:invalid/mystore";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_from_uri_malformed() {
+        let uri = "not-a-valid-uri";
+        let result = Engine::from_uri(uri);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_engine_get_credentials() {
+        let engine = Engine::new(
+            "localhost".to_string(),
+            21210,
+            "myuser".to_string(),
+            "mypass".to_string(),
+            Some("mystore".to_string()),
+            false,
+        );
+
+        let creds = engine.get_credentials();
+        assert_eq!(creds.len(), 2);
+        assert_eq!(creds[0], "myuser");
+        assert_eq!(creds[1], "mypass");
+    }
+
+    #[test]
+    fn test_engine_enable_tls() {
+        let mut engine = Engine::new(
+            "localhost".to_string(),
+            21210,
+            "user".to_string(),
+            "pass".to_string(),
+            None,
+            false,
+        );
+
+        assert_eq!(engine.use_tls, false);
+        engine.enable_tls();
+        assert_eq!(engine.use_tls, true);
+    }
+
+    #[test]
+    fn test_engine_serialization() {
+        let engine = Engine::new(
+            "localhost".to_string(),
+            21210,
+            "user".to_string(),
+            "pass".to_string(),
+            Some("store".to_string()),
+            true,
+        );
+
+        let serialized = serde_json::to_string(&engine).unwrap();
+        let deserialized: Engine = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.host, "localhost");
+        assert_eq!(deserialized.port, 21210);
+        assert_eq!(deserialized.username, "user");
+        assert_eq!(deserialized.password, "pass");
+        assert_eq!(deserialized.store, Some("store".to_string()));
+        assert_eq!(deserialized.use_tls, true);
+    }
+
+    #[test]
+    fn test_engine_clone() {
+        let engine1 = Engine::new(
+            "localhost".to_string(),
+            21210,
+            "user".to_string(),
+            "pass".to_string(),
+            Some("store".to_string()),
+            false,
+        );
+
+        let engine2 = engine1.clone();
+
+        assert_eq!(engine1.host, engine2.host);
+        assert_eq!(engine1.port, engine2.port);
+        assert_eq!(engine1.username, engine2.username);
+        assert_eq!(engine1.password, engine2.password);
+        assert_eq!(engine1.store, engine2.store);
+        assert_eq!(engine1.use_tls, engine2.use_tls);
+    }
+
+    #[test]
+    fn test_engine_from_uri_with_ipv6() {
+        let uri = "montycat://user:pass@[::1]:21210/store";
+        let engine = Engine::from_uri(uri).unwrap();
+
+        assert_eq!(engine.host, "[::1]");
+        assert_eq!(engine.port, 21210);
+    }
+}

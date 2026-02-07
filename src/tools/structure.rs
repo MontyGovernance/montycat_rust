@@ -225,3 +225,185 @@ impl Timestamp {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== Limit Tests =====
+    
+    #[test]
+    fn test_limit_new() {
+        let limit = Limit::new(10, 20);
+        assert_eq!(limit.start, 10);
+        assert_eq!(limit.stop, 20);
+    }
+
+    #[test]
+    fn test_limit_default_limit() {
+        let limit = Limit::default_limit();
+        assert_eq!(limit.start, 0);
+        assert_eq!(limit.stop, 0);
+    }
+
+    #[test]
+    fn test_limit_to_map() {
+        let limit = Limit::new(5, 15);
+        let map = limit.to_map();
+        assert_eq!(map.get("start"), Some(&5));
+        assert_eq!(map.get("stop"), Some(&15));
+        assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn test_limit_serialization() {
+        let limit = Limit::new(1, 100);
+        let serialized = serde_json::to_string(&limit).unwrap();
+        let deserialized: Limit = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.start, 1);
+        assert_eq!(deserialized.stop, 100);
+    }
+
+    #[test]
+    fn test_limit_equality() {
+        let limit1 = Limit::new(10, 20);
+        let limit2 = Limit::new(10, 20);
+        let limit3 = Limit::new(10, 21);
+        assert_eq!(limit1, limit2);
+        assert_ne!(limit1, limit3);
+    }
+
+    #[test]
+    fn test_limit_default_trait() {
+        let limit: Limit = Default::default();
+        assert_eq!(limit.start, 0);
+        assert_eq!(limit.stop, 0);
+    }
+
+    // ===== Pointer Tests =====
+
+    #[test]
+    fn test_pointer_new() {
+        let pointer = Pointer::new("users", "user123");
+        assert_eq!(pointer.keyspace, "users");
+        assert_eq!(pointer.key, "user123");
+    }
+
+    #[test]
+    fn test_pointer_using() {
+        let (keyspace, key) = Pointer::using("products", "prod456");
+        assert_eq!(keyspace, "products");
+        assert_eq!(key, "prod456");
+    }
+
+    #[test]
+    fn test_pointer_serialization() {
+        let pointer = Pointer::new("orders", "order789");
+        let serialized = serde_json::to_string(&pointer).unwrap();
+        let deserialized: Pointer = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.keyspace, "orders");
+        assert_eq!(deserialized.key, "order789");
+    }
+
+    #[test]
+    fn test_pointer_equality() {
+        let pointer1 = Pointer::new("test", "key1");
+        let pointer2 = Pointer::new("test", "key1");
+        let pointer3 = Pointer::new("test", "key2");
+        assert_eq!(pointer1, pointer2);
+        assert_ne!(pointer1, pointer3);
+    }
+
+    #[test]
+    fn test_pointer_default() {
+        let pointer: Pointer = Default::default();
+        assert_eq!(pointer.keyspace, "");
+        assert_eq!(pointer.key, "");
+    }
+
+    #[test]
+    fn test_pointer_with_empty_strings() {
+        let pointer = Pointer::new("", "");
+        assert_eq!(pointer.keyspace, "");
+        assert_eq!(pointer.key, "");
+    }
+
+    #[test]
+    fn test_pointer_with_special_characters() {
+        let pointer = Pointer::new("my-keyspace_123", "key:with:colons");
+        assert_eq!(pointer.keyspace, "my-keyspace_123");
+        assert_eq!(pointer.key, "key:with:colons");
+    }
+
+    // ===== Timestamp Tests =====
+
+    #[test]
+    fn test_timestamp_new() {
+        let ts = Timestamp::new("2024-01-01T00:00:00Z");
+        assert_eq!(ts.timestamp, Some("2024-01-01T00:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_timestamp_using() {
+        let ts_str = Timestamp::using("2024-12-31T23:59:59Z");
+        assert_eq!(ts_str, "2024-12-31T23:59:59Z");
+    }
+
+    #[test]
+    fn test_timestamp_after() {
+        let map = Timestamp::after("2024-06-01T00:00:00Z");
+        assert_eq!(map.get("after"), Some(&"2024-06-01T00:00:00Z".to_string()));
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn test_timestamp_before() {
+        let map = Timestamp::before("2024-06-30T23:59:59Z");
+        assert_eq!(map.get("before"), Some(&"2024-06-30T23:59:59Z".to_string()));
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn test_timestamp_range() {
+        let map = Timestamp::range("2024-01-01T00:00:00Z", "2024-12-31T23:59:59Z");
+        let range = map.get("range_timestamp").unwrap();
+        assert_eq!(range.len(), 2);
+        assert_eq!(range[0], "2024-01-01T00:00:00Z");
+        assert_eq!(range[1], "2024-12-31T23:59:59Z");
+    }
+
+    #[test]
+    fn test_timestamp_serialization() {
+        let ts = Timestamp::new("2024-03-15T12:30:00Z");
+        let serialized = serde_json::to_string(&ts).unwrap();
+        let deserialized: Timestamp = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.timestamp, Some("2024-03-15T12:30:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_timestamp_equality() {
+        let ts1 = Timestamp::new("2024-01-01T00:00:00Z");
+        let ts2 = Timestamp::new("2024-01-01T00:00:00Z");
+        let ts3 = Timestamp::new("2024-01-02T00:00:00Z");
+        assert_eq!(ts1, ts2);
+        assert_ne!(ts1, ts3);
+    }
+
+    #[test]
+    fn test_timestamp_default() {
+        let ts: Timestamp = Default::default();
+        assert_eq!(ts.timestamp, None);
+    }
+
+    #[test]
+    fn test_timestamp_with_different_formats() {
+        let ts1 = Timestamp::new("2024-01-01");
+        let ts2 = Timestamp::new("1704067200");
+        let ts3 = Timestamp::new("2024-01-01T00:00:00.000Z");
+        
+        assert_eq!(ts1.timestamp, Some("2024-01-01".to_string()));
+        assert_eq!(ts2.timestamp, Some("1704067200".to_string()));
+        assert_eq!(ts3.timestamp, Some("2024-01-01T00:00:00.000Z".to_string()));
+    }
+}
+

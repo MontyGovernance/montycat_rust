@@ -3,6 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/montycat.svg)](https://crates.io/crates/montycat)
 [![Docs.rs](https://docs.rs/montycat/badge.svg)](https://docs.rs/montycat)
+[![CI](https://github.com/MontyGovernance/montycat_rust/workflows/CI/badge.svg)](https://github.com/MontyGovernance/montycat_rust/actions/workflows/ci.yml)
+[![Security Audit](https://github.com/MontyGovernance/montycat_rust/workflows/Security%20Audit/badge.svg)](https://github.com/MontyGovernance/montycat_rust/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/MontyGovernance/montycat_rust/branch/main/graph/badge.svg)](https://codecov.io/gh/MontyGovernance/montycat_rust)
 
 ## 🦀 What Is Montycat?
 

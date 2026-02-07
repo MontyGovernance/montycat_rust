@@ -208,3 +208,220 @@ where
     }
 
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    struct TestStruct {
+        id: u32,
+        name: String,
+    }
+
+    // ===== MontycatResponse Tests =====
+
+    #[test]
+    fn test_montycat_response_parse_simple_success() {
+        let json_str = r#"{"status":true,"payload":"test_value","error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<String> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.payload, "test_value");
+        assert_eq!(response.error, None);
+    }
+
+    #[test]
+    fn test_montycat_response_parse_with_error() {
+        let json_str = r#"{"status":false,"payload":null,"error":"Something went wrong"}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<Option<String>> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, false);
+        assert_eq!(response.payload, None);
+        assert_eq!(response.error, Some("Something went wrong".to_string()));
+    }
+
+    #[test]
+    fn test_montycat_response_parse_struct() {
+        let json_str = r#"{"status":true,"payload":{"id":1,"name":"test"},"error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<TestStruct> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.payload.id, 1);
+        assert_eq!(response.payload.name, "test");
+    }
+
+    #[test]
+    fn test_montycat_response_parse_nested_json_string() {
+        let json_str = r#"{"status":true,"payload":"{\"id\":42,\"name\":\"nested\"}","error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<TestStruct> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.payload.id, 42);
+        assert_eq!(response.payload.name, "nested");
+    }
+
+    #[test]
+    fn test_montycat_response_parse_array() {
+        let json_str = r#"{"status":true,"payload":[{"id":1,"name":"first"},{"id":2,"name":"second"}],"error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<Vec<TestStruct>> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.payload.len(), 2);
+        assert_eq!(response.payload[0].id, 1);
+        assert_eq!(response.payload[1].name, "second");
+    }
+
+    #[test]
+    fn test_montycat_response_parse_option_some() {
+        let json_str = r#"{"status":true,"payload":{"id":99,"name":"optional"},"error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<Option<TestStruct>> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert!(response.payload.is_some());
+        assert_eq!(response.payload.unwrap().id, 99);
+    }
+
+    #[test]
+    fn test_montycat_response_parse_option_none() {
+        let json_str = r#"{"status":true,"payload":null,"error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<Option<TestStruct>> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert!(response.payload.is_none());
+    }
+
+    #[test]
+    fn test_montycat_response_parse_error_no_data() {
+        let bytes: Result<Option<Vec<u8>>, MontycatClientError> = Ok(None);
+        
+        let result: Result<MontycatResponse<String>, MontycatClientError> = MontycatResponse::parse_response(bytes);
+        
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(e.message().contains("No data received"));
+        }
+    }
+
+    #[test]
+    fn test_montycat_response_parse_error_invalid_json() {
+        let invalid_json = b"not valid json";
+        let bytes = Ok(Some(invalid_json.to_vec()));
+        
+        let result: Result<MontycatResponse<String>, MontycatClientError> = MontycatResponse::parse_response(bytes);
+        
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_montycat_response_parse_error_propagation() {
+        let bytes: Result<Option<Vec<u8>>, MontycatClientError> = Err(MontycatClientError::ClientEngineError("Connection failed".to_string()));
+        
+        let result: Result<MontycatResponse<String>, MontycatClientError> = MontycatResponse::parse_response(bytes);
+        
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert_eq!(e.message(), "Connection failed");
+        }
+    }
+
+    // ===== MontycatStreamResponse Tests =====
+
+    #[test]
+    fn test_montycat_stream_response_parse_simple() {
+        let json_str = r#"{"message":"Processing","status":true,"payload":"stream_data","error":null}"#;
+        let bytes = json_str.as_bytes().to_vec();
+        
+        let response: MontycatStreamResponse<String> = MontycatStreamResponse::parse_response(&bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.message, Some("Processing".to_string()));
+        assert_eq!(response.payload, "stream_data");
+        assert_eq!(response.error, None);
+    }
+
+    #[test]
+    fn test_montycat_stream_response_parse_with_error() {
+        let json_str = r#"{"message":null,"status":false,"payload":null,"error":"Stream error"}"#;
+        let bytes = json_str.as_bytes().to_vec();
+        
+        let response: MontycatStreamResponse<Option<String>> = MontycatStreamResponse::parse_response(&bytes).unwrap();
+        
+        assert_eq!(response.status, false);
+        assert_eq!(response.message, None);
+        assert_eq!(response.error, Some("Stream error".to_string()));
+    }
+
+    #[test]
+    fn test_montycat_stream_response_parse_struct() {
+        let json_str = r#"{"message":"Data ready","status":true,"payload":{"id":123,"name":"streamed"},"error":null}"#;
+        let bytes = json_str.as_bytes().to_vec();
+        
+        let response: MontycatStreamResponse<TestStruct> = MontycatStreamResponse::parse_response(&bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.message, Some("Data ready".to_string()));
+        assert_eq!(response.payload.id, 123);
+        assert_eq!(response.payload.name, "streamed");
+    }
+
+    #[test]
+    fn test_montycat_stream_response_parse_nested_json() {
+        let json_str = r#"{"message":"Nested data","status":true,"payload":"{\"id\":77,\"name\":\"nested_stream\"}","error":null}"#;
+        let bytes = json_str.as_bytes().to_vec();
+        
+        let response: MontycatStreamResponse<TestStruct> = MontycatStreamResponse::parse_response(&bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.payload.id, 77);
+        assert_eq!(response.payload.name, "nested_stream");
+    }
+
+    #[test]
+    fn test_montycat_stream_response_parse_invalid_json() {
+        let invalid_json = b"not valid json".to_vec();
+        
+        let result: Result<MontycatStreamResponse<String>, MontycatClientError> = MontycatStreamResponse::parse_response(&invalid_json);
+        
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_montycat_stream_response_no_message() {
+        let json_str = r#"{"status":true,"payload":"data","error":null}"#;
+        let bytes = json_str.as_bytes().to_vec();
+        
+        let response: MontycatStreamResponse<String> = MontycatStreamResponse::parse_response(&bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.message, None);
+        assert_eq!(response.payload, "data");
+    }
+
+    #[test]
+    fn test_recursive_json_parsing_deeply_nested() {
+        let json_str = r#"{"status":true,"payload":"[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]","error":null}"#;
+        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        
+        let response: MontycatResponse<Vec<TestStruct>> = MontycatResponse::parse_response(bytes).unwrap();
+        
+        assert_eq!(response.status, true);
+        assert_eq!(response.payload.len(), 2);
+        assert_eq!(response.payload[0].id, 1);
+        assert_eq!(response.payload[1].name, "item2");
+    }
+}
