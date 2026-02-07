@@ -226,7 +226,7 @@ mod tests {
 
         let response: MontycatResponse<String> = MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.payload, "test_value");
         assert_eq!(response.error, None);
     }
@@ -239,7 +239,7 @@ mod tests {
         let response: MontycatResponse<Option<String>> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, false);
+        assert!(!response.status);
         assert_eq!(response.payload, None);
         assert_eq!(response.error, Some("Something went wrong".to_string()));
     }
@@ -252,7 +252,7 @@ mod tests {
         let response: MontycatResponse<TestStruct> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.payload.id, 1);
         assert_eq!(response.payload.name, "test");
     }
@@ -266,7 +266,7 @@ mod tests {
         let response: MontycatResponse<TestStruct> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.payload.id, 42);
         assert_eq!(response.payload.name, "nested");
     }
@@ -279,7 +279,7 @@ mod tests {
         let response: MontycatResponse<Vec<TestStruct>> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.payload.len(), 2);
         assert_eq!(response.payload[0].id, 1);
         assert_eq!(response.payload[1].name, "second");
@@ -293,7 +293,7 @@ mod tests {
         let response: MontycatResponse<Option<TestStruct>> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert!(response.payload.is_some());
         assert_eq!(response.payload.unwrap().id, 99);
     }
@@ -306,7 +306,7 @@ mod tests {
         let response: MontycatResponse<Option<TestStruct>> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert!(response.payload.is_none());
     }
 
@@ -360,7 +360,7 @@ mod tests {
         let response: MontycatStreamResponse<String> =
             MontycatStreamResponse::parse_response(&bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.message, Some("Processing".to_string()));
         assert_eq!(response.payload, "stream_data");
         assert_eq!(response.error, None);
@@ -374,7 +374,7 @@ mod tests {
         let response: MontycatStreamResponse<Option<String>> =
             MontycatStreamResponse::parse_response(&bytes).unwrap();
 
-        assert_eq!(response.status, false);
+        assert!(!response.status);
         assert_eq!(response.message, None);
         assert_eq!(response.error, Some("Stream error".to_string()));
     }
@@ -387,7 +387,7 @@ mod tests {
         let response: MontycatStreamResponse<TestStruct> =
             MontycatStreamResponse::parse_response(&bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.message, Some("Data ready".to_string()));
         assert_eq!(response.payload.id, 123);
         assert_eq!(response.payload.name, "streamed");
@@ -401,7 +401,7 @@ mod tests {
         let response: MontycatStreamResponse<TestStruct> =
             MontycatStreamResponse::parse_response(&bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.payload.id, 77);
         assert_eq!(response.payload.name, "nested_stream");
     }
@@ -424,7 +424,7 @@ mod tests {
         let response: MontycatStreamResponse<String> =
             MontycatStreamResponse::parse_response(&bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.message, None);
         assert_eq!(response.payload, "data");
     }
@@ -437,7 +437,7 @@ mod tests {
         let response: MontycatResponse<Vec<TestStruct>> =
             MontycatResponse::parse_response(bytes).unwrap();
 
-        assert_eq!(response.status, true);
+        assert!(response.status);
         assert_eq!(response.payload.len(), 2);
         assert_eq!(response.payload[0].id, 1);
         assert_eq!(response.payload[1].name, "item2");
