@@ -98,55 +98,6 @@ impl PersistentKeyspace {
         }
     }
 
-
-    // /// Subscribes to changes in the persistent keyspace.
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `key` - Optional key to subscribe to.
-    // /// * `custom_key` - Optional custom key to subscribe to.
-    // ///
-    // /// # Returns
-    // ///
-    // /// * `Result<(), MontycatClientError>` - An empty result or an error.
-    // ///
-    // /// # Examples
-    // ///
-    // /// ```rust,no_run
-    // /// let callback = Arc::new(|data: &Vec<u8>| {
-    // ///   println!("Received data: {:?}", data);
-    // /// });
-    // ///
-    // /// let res: Result<(), MontycatClientError> = keyspace.subscribe(Some("my_key".into()), None, callback).await;
-    // /// ```
-    // ///
-    // /// # Errors
-    // ///
-    // /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
-    // /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
-    // ///
-    // pub async fn subscribe(&self, key: Option<String>, custom_key: Option<String>, callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>) -> Result<(), MontycatClientError> {
-
-    //     let engine: Engine = self.get_engine();
-    //     let name: &str = self.get_name();
-    //     let store: &String = engine.store.as_ref().ok_or(MontycatClientError::ClientStoreNotSet)?;
-    //     let use_tls: bool = engine.use_tls;
-
-    //     let key: Option<String> = {
-    //         if key.is_some() && custom_key.is_some() {
-    //             return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
-    //         }
-    //         key.or(custom_key)
-    //     };
-
-    //     let port: u16 = engine.port + 1;
-    //     let request_bytes = fulfil_subscription_request(store, name, key, &engine.username, &engine.password)?;
-    //     let _response: Option<Vec<u8>> = send_data(&engine.host, port, request_bytes.as_slice(), Some(callback), None, use_tls).await?;
-
-    //     Ok(())
-
-    // }
-
     /// Subscribes to changes in the persistent keyspace.
     ///
     /// # Arguments
