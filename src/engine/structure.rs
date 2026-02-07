@@ -629,7 +629,7 @@ mod tests {
         assert_eq!(engine.username, "testuser");
         assert_eq!(engine.password, "testpass");
         assert_eq!(engine.store, Some("teststore".to_string()));
-        assert_eq!(engine.use_tls, false);
+        assert!(!engine.use_tls);
     }
 
     #[test]
@@ -646,7 +646,7 @@ mod tests {
         assert_eq!(engine.host, "127.0.0.1");
         assert_eq!(engine.port, 8080);
         assert_eq!(engine.store, None);
-        assert_eq!(engine.use_tls, true);
+        assert!(engine.use_tls);
     }
 
     #[test]
@@ -659,7 +659,7 @@ mod tests {
         assert_eq!(engine.username, "username");
         assert_eq!(engine.password, "password");
         assert_eq!(engine.store, Some("mystore".to_string()));
-        assert_eq!(engine.use_tls, false);
+        assert!(!engine.use_tls);
     }
 
     #[test]
@@ -764,9 +764,9 @@ mod tests {
             false,
         );
 
-        assert_eq!(engine.use_tls, false);
+        assert!(!engine.use_tls);
         engine.enable_tls();
-        assert_eq!(engine.use_tls, true);
+        assert!(engine.use_tls);
     }
 
     #[test]
@@ -788,7 +788,7 @@ mod tests {
         assert_eq!(deserialized.username, "user");
         assert_eq!(deserialized.password, "pass");
         assert_eq!(deserialized.store, Some("store".to_string()));
-        assert_eq!(deserialized.use_tls, true);
+        assert!(deserialized.use_tls);
     }
 
     #[test]
