@@ -14,6 +14,8 @@ use tokio_rustls::{
     rustls::{ClientConfig, RootCertStore},
 };
 
+pub(crate) type StreamCallback = Arc<dyn Fn(&Vec<u8>) + Send + Sync>;
+
 const CHUNK_SIZE: usize = 1024 * 256;
 
 /// Represents a connection, either plain TCP or TLS.
@@ -88,7 +90,7 @@ pub(crate) async fn send_data(
     host: &str,
     port: u16,
     query: &[u8],
-    callback: Option<Arc<dyn Fn(&Vec<u8>) + Send + Sync>>,
+    callback: Option<StreamCallback>,
     stop_event: Option<&mut Receiver<bool>>,
     use_tls: bool,
 ) -> Result<Option<Vec<u8>>, MontycatClientError> {

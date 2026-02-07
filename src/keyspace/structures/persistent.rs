@@ -11,7 +11,6 @@ use crate::traits::RuntimeSchema;
 use serde::Serialize;
 use std::any::type_name;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// Represents a persistent keyspace in the Montycat database.
 ///
@@ -99,32 +98,33 @@ impl PersistentKeyspace {
         }
     }
 
-    /// Subscribes to changes in the persistent keyspace.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - Optional key to subscribe to.
-    /// * `custom_key` - Optional custom key to subscribe to.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), MontycatClientError>` - An empty result or an error.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// let callback = Arc::new(|data: &Vec<u8>| {
-    ///   println!("Received data: {:?}", data);
-    /// });
-    ///
-    /// let res: Result<(), MontycatClientError> = keyspace.subscribe(Some("my_key".into()), None, callback).await;
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
-    /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
-    ///
+
+    // /// Subscribes to changes in the persistent keyspace.
+    // ///
+    // /// # Arguments
+    // ///
+    // /// * `key` - Optional key to subscribe to.
+    // /// * `custom_key` - Optional custom key to subscribe to.
+    // ///
+    // /// # Returns
+    // ///
+    // /// * `Result<(), MontycatClientError>` - An empty result or an error.
+    // ///
+    // /// # Examples
+    // ///
+    // /// ```rust,no_run
+    // /// let callback = Arc::new(|data: &Vec<u8>| {
+    // ///   println!("Received data: {:?}", data);
+    // /// });
+    // ///
+    // /// let res: Result<(), MontycatClientError> = keyspace.subscribe(Some("my_key".into()), None, callback).await;
+    // /// ```
+    // ///
+    // /// # Errors
+    // ///
+    // /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    // /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
+    // ///
     // pub async fn subscribe(&self, key: Option<String>, custom_key: Option<String>, callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>) -> Result<(), MontycatClientError> {
 
     //     let engine: Engine = self.get_engine();
@@ -146,11 +146,43 @@ impl PersistentKeyspace {
     //     Ok(())
 
     // }
+
+    /// Subscribes to changes in the persistent keyspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Optional key to subscribe to.
+    /// * `custom_key` - Optional custom key to subscribe to.
+    /// * `callback` - Callback function to handle incoming subscription data.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tokio::sync::watch::Sender<bool>, MontycatClientError>` - A sender to stop the subscription or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use montycat::engine::utils::StreamCallback;
+    /// use std::sync::Arc;
+    ///
+    /// let callback: StreamCallback = Arc::new(|data: &Vec<u8>| {
+    ///   println!("Received data: {:?}", data);
+    /// });
+    ///
+    /// let stop_tx = keyspace.subscribe(Some("my_key".into()), None, callback).await?;
+    /// // To stop the subscription:
+    /// // stop_tx.send(true)?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
     pub async fn subscribe(
         &self,
         key: Option<String>,
         custom_key: Option<String>,
-        callback: Arc<dyn Fn(&Vec<u8>) + Send + Sync>,
+        callback: crate::engine::utils::StreamCallback,
     ) -> Result<tokio::sync::watch::Sender<bool>, MontycatClientError> {
         let (stop_tx, mut stop_rx) = tokio::sync::watch::channel::<bool>(false);
 

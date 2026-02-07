@@ -143,8 +143,8 @@ where
     /// let parsed_response: MontycatStreamResponse<Option<MyStruct>> = MontycatStreamResponse::parse_response(response_bytes);
     /// ```
     ///
-    pub fn parse_response(bytes: &Vec<u8>) -> Result<Self, MontycatClientError> {
-        let mut bytes_unwrapped: Vec<u8> = bytes.clone();
+    pub fn parse_response(bytes: &[u8]) -> Result<Self, MontycatClientError> {
+        let mut bytes_unwrapped: Vec<u8> = bytes.to_owned();
 
         let mut response: MontycatStreamResponse<simd_json::OwnedValue> =
             simd_json::from_slice(bytes_unwrapped.as_mut_slice())

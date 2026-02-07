@@ -20,7 +20,7 @@ use simd_json;
 #[derive(Debug, Clone)]
 pub(crate) enum Req {
     Raw(IndexMap<String, Vec<String>>),
-    Store(StoreRequestClient),
+    Store(Box<StoreRequestClient>),
 }
 
 impl Req {
@@ -49,7 +49,7 @@ impl Req {
     /// - `Self` : A new instance of `Req` representing the store command.
     ///
     pub(crate) fn new_store_command(store_request: StoreRequestClient) -> Self {
-        Req::Store(store_request)
+        Req::Store(Box::new(store_request))
     }
 
     /// Serializes the request into a byte vector.
