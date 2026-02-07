@@ -1,6 +1,6 @@
-use indexmap::IndexMap;
-use crate::errors::MontycatClientError;
 use super::store_request::structure::StoreRequestClient;
+use crate::errors::MontycatClientError;
+use indexmap::IndexMap;
 use simd_json;
 
 /// Represents a request to be sent to the Montycat server.
@@ -13,7 +13,7 @@ use simd_json;
 /// - `new_raw_command(command: Vec<String>, credentials: Vec<String>) -> Self` : Creates a new raw command request.
 /// - `new_store_command(store_request: StoreRequestClient) -> Self` : Creates a new store command request.
 /// - `byte_down(&self) -> Result<Vec<u8>, MontycatClientError>` : Serializes the request into a byte vector.   
-/// 
+///
 /// Errors:
 /// - `MontycatClientError::ClientEngineError(String)` : Returned if serialization fails.
 ///
@@ -24,13 +24,12 @@ pub(crate) enum Req {
 }
 
 impl Req {
-
     /// Creates a new raw command request.
-    /// 
+    ///
     /// # Arguments
     /// - `command: Vec<String>` : The command to be sent.
     /// - `credentials: Vec<String>` : The credentials for authentication.
-    /// 
+    ///
     /// # Returns
     /// - `Self` : A new instance of `Req` representing the raw command.
     ///
@@ -45,7 +44,7 @@ impl Req {
     ///
     /// # Arguments
     /// - `store_request: StoreRequestClient` : The store request to be sent.
-    /// 
+    ///
     /// # Returns
     /// - `Self` : A new instance of `Req` representing the store command.
     ///
@@ -61,18 +60,19 @@ impl Req {
     pub(crate) fn byte_down(&self) -> Result<Vec<u8>, MontycatClientError> {
         match self {
             Req::Raw(map) => {
-                let json_str: String = simd_json::to_string(map).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+                let json_str: String = simd_json::to_string(map)
+                    .map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
                 let mut bytes: Vec<u8> = json_str.into_bytes();
                 bytes.push(b'\n');
                 Ok(bytes)
-            },
+            }
             Req::Store(map) => {
-                let json_str: String = simd_json::to_string(map).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+                let json_str: String = simd_json::to_string(map)
+                    .map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
                 let mut bytes: Vec<u8> = json_str.into_bytes();
                 bytes.push(b'\n');
                 Ok(bytes)
-            },
+            }
         }
     }
-
 }

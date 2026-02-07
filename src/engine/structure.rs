@@ -1,7 +1,7 @@
+use super::utils::send_data;
+use crate::{errors::MontycatClientError, request::structure::Req};
 use serde::{Deserialize, Serialize};
 use url::Url;
-use crate::{errors::MontycatClientError, request::structure::Req};
-use super::utils::send_data;
 
 /// Valid permissions for granting or revoking access.
 /// Read: Read-only access.
@@ -34,9 +34,9 @@ impl ValidPermissions {
 }
 
 /// Represents the Montycat engine configuration and connection details.
-/// 
+///
 /// # Fields
-/// 
+///
 /// - `host`: The hostname or IP address of the Montycat server.
 /// - `port`: The port number of the Montycat server.
 /// - `username`: The username for authentication.
@@ -54,7 +54,7 @@ impl ValidPermissions {
 /// This struct does not return errors. However, ensure that the provided parameters are valid.
 ///
 /// # Notes
-/// 
+///
 /// If `use_tls` is set to true, the connection will be established using TLS encryption.
 /// You have to enable the `tls` feature in Cargo.toml for TLS support.
 ///
@@ -94,7 +94,14 @@ impl Engine {
     ///
     /// This function does not return errors. However, ensure that the provided parameters are valid.
     ///
-    pub fn new(host: String, port: u16, username: String, password: String, store: Option<String>, use_tls: bool) -> Self {
+    pub fn new(
+        host: String,
+        port: u16,
+        username: String,
+        password: String,
+        store: Option<String>,
+        use_tls: bool,
+    ) -> Self {
         Engine {
             host,
             port,
@@ -113,7 +120,7 @@ impl Engine {
     ///
     /// This method sets the `use_tls` field to true, indicating that the connection
     /// should be established using TLS.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
@@ -153,30 +160,40 @@ impl Engine {
     /// Returns MontycatClientError if the URI is invalid or missing required components
     ///
     pub fn from_uri(uri: &str) -> Result<Self, MontycatClientError> {
-
         if !uri.starts_with("montycat://") {
-            return Err(MontycatClientError::ClientGenericError("URI must start with montycat://".into()));
+            return Err(MontycatClientError::ClientGenericError(
+                "URI must start with montycat://".into(),
+            ));
         }
 
-        let parsed: Url = Url::parse(uri).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
+        let parsed: Url =
+            Url::parse(uri).map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
         let username: &str = parsed.username();
         if username.is_empty() {
-            return Err(MontycatClientError::ClientGenericError("Username must be provided".into()));
+            return Err(MontycatClientError::ClientGenericError(
+                "Username must be provided".into(),
+            ));
         }
 
         let password: &str = parsed.password().ok_or_else(|| {
             MontycatClientError::ClientGenericError("Password must be provided".into())
         })?;
 
-        let host: &str = parsed.host_str()
-            .ok_or_else(|| MontycatClientError::ClientGenericError("Host must be provided".into()))?;
+        let host: &str = parsed.host_str().ok_or_else(|| {
+            MontycatClientError::ClientGenericError("Host must be provided".into())
+        })?;
 
-        let port: u16 = parsed.port()
-            .ok_or_else(|| MontycatClientError::ClientGenericError("Port must be provided".into()))?;
+        let port: u16 = parsed.port().ok_or_else(|| {
+            MontycatClientError::ClientGenericError("Port must be provided".into())
+        })?;
 
         let store: Option<String> = parsed.path().strip_prefix('/').and_then(|p| {
-            if p.is_empty() { None } else { Some(p.to_string()) }
+            if p.is_empty() {
+                None
+            } else {
+                Some(p.to_string())
+            }
         });
 
         let connection: Engine = Self::new(
@@ -189,7 +206,6 @@ impl Engine {
         );
 
         Ok(connection)
-
     }
 
     /// Creates a new store in the Montycat database.
@@ -203,12 +219,10 @@ impl Engine {
     /// Returns MontycatClientError if the store is not set or if there is a communication error.
     ///
     pub async fn create_store(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         if let Some(store) = &self.store {
-
             let request: Req = Req::new_raw_command(
                 vec!["create-store".into(), "store".into(), store.clone()],
-                vec![self.username.clone(), self.password.clone()]
+                vec![self.username.clone(), self.password.clone()],
             );
 
             let response: Option<Vec<u8>> = send_data(
@@ -218,14 +232,13 @@ impl Engine {
                 None,
                 None,
                 self.use_tls,
-            ).await?;
+            )
+            .await?;
 
             Ok(response)
-
         } else {
             Err(MontycatClientError::ClientStoreNotSet)
         }
-
     }
 
     /// Removes the store from the Montycat database.
@@ -243,12 +256,10 @@ impl Engine {
     /// Returns MontycatClientError if the store is not set or if there is a communication error.
     ///
     pub async fn remove_store(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         if let Some(store) = &self.store {
-
             let request: Req = Req::new_raw_command(
                 vec!["remove-store".into(), "store".into(), store.clone()],
-                vec![self.username.clone(), self.password.clone()]
+                vec![self.username.clone(), self.password.clone()],
             );
 
             let response: Option<Vec<u8>> = send_data(
@@ -258,14 +269,13 @@ impl Engine {
                 None,
                 None,
                 self.use_tls,
-            ).await?;
+            )
+            .await?;
 
             Ok(response)
-
         } else {
             Err(MontycatClientError::ClientStoreNotSet)
         }
-
     }
 
     /// Retrieves the available structures from the Montycat database.
@@ -279,7 +289,6 @@ impl Engine {
     /// Returns MontycatClientError if the store is not set or if there is a communication error.
     ///
     pub async fn get_structure_available(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         let command: Vec<String> = {
             if let Some(part) = self.store.as_ref().map(|s| vec!["store".into(), s.clone()]) {
                 let mut cmd = vec!["get-structure-available".into()];
@@ -290,10 +299,8 @@ impl Engine {
             }
         };
 
-        let request: Req = Req::new_raw_command(
-            command,
-            vec![self.username.clone(), self.password.clone()]
-        );
+        let request: Req =
+            Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
         let response: Option<Vec<u8>> = send_data(
             &self.host,
@@ -302,10 +309,10 @@ impl Engine {
             None,
             None,
             self.use_tls,
-        ).await?;
+        )
+        .await?;
 
         Ok(response)
-
     }
 
     /// Lists all owners in the Montycat database.
@@ -323,10 +330,9 @@ impl Engine {
     /// Returns MontycatClientError if there is a communication error.
     ///
     pub async fn list_owners(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         let request: Req = Req::new_raw_command(
             vec!["list-owners".into()],
-            vec![self.username.clone(), self.password.clone()]
+            vec![self.username.clone(), self.password.clone()],
         );
 
         let response: Option<Vec<u8>> = send_data(
@@ -336,10 +342,10 @@ impl Engine {
             None,
             None,
             self.use_tls,
-        ).await?;
+        )
+        .await?;
 
         Ok(response)
-
     }
 
     /// Creates a new owner in the Montycat database.
@@ -359,11 +365,20 @@ impl Engine {
     /// # Errors
     /// Returns MontycatClientError if there is a communication error.
     ///
-    pub async fn create_owner(&self, username: &str, password: &str) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
+    pub async fn create_owner(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let request: Req = Req::new_raw_command(
-            vec!["create-owner".into(), "username".into(), username.into(), "password".into(), password.into()],
-            vec![self.username.to_owned(), self.password.to_owned()]
+            vec![
+                "create-owner".into(),
+                "username".into(),
+                username.into(),
+                "password".into(),
+                password.into(),
+            ],
+            vec![self.username.to_owned(), self.password.to_owned()],
         );
 
         let response: Option<Vec<u8>> = send_data(
@@ -373,10 +388,10 @@ impl Engine {
             None,
             None,
             self.use_tls,
-        ).await?;
+        )
+        .await?;
 
         Ok(response)
-
     }
 
     /// Removes an owner from the Montycat database.
@@ -397,11 +412,13 @@ impl Engine {
     /// # Errors
     /// Returns MontycatClientError if there is a communication error.
     ///
-    pub async fn remove_owner(&self, username: &str) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
+    pub async fn remove_owner(
+        &self,
+        username: &str,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let request: Req = Req::new_raw_command(
             vec!["remove-owner".into(), "username".into(), username.into()],
-            vec![self.username.to_owned(), self.password.to_owned()]
+            vec![self.username.to_owned(), self.password.to_owned()],
         );
 
         let response: Option<Vec<u8>> = send_data(
@@ -411,10 +428,10 @@ impl Engine {
             None,
             None,
             self.use_tls,
-        ).await?;
+        )
+        .await?;
 
         Ok(response)
-
     }
 
     /// Grants permissions to an owner on a store and optionally specific keyspaces.
@@ -448,12 +465,13 @@ impl Engine {
         store: Option<&str>,
         keyspaces: Option<Vec<&str>>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         let store: &str = {
             if let Some(s) = store {
                 s
             } else {
-                self.store.as_deref().ok_or(MontycatClientError::ClientStoreNotSet)?
+                self.store
+                    .as_deref()
+                    .ok_or(MontycatClientError::ClientStoreNotSet)?
             }
         };
 
@@ -468,14 +486,15 @@ impl Engine {
         ];
 
         if let Some(ks_vec) = keyspaces
-            && !ks_vec.is_empty() {
-                vec.push("keyspaces".into());
-                vec.push(ks_vec.join(","));
-            }
+            && !ks_vec.is_empty()
+        {
+            vec.push("keyspaces".into());
+            vec.push(ks_vec.join(","));
+        }
 
         let request: Req = Req::new_raw_command(
             vec,
-            vec![self.username.to_owned(), self.password.to_owned()]
+            vec![self.username.to_owned(), self.password.to_owned()],
         );
 
         let response: Option<Vec<u8>> = send_data(
@@ -485,10 +504,10 @@ impl Engine {
             None,
             None,
             self.use_tls,
-        ).await?;
+        )
+        .await?;
 
         Ok(response)
-
     }
 
     /// Revokes permissions from an owner on a store and optionally specific keyspaces.
@@ -522,34 +541,36 @@ impl Engine {
         store: Option<&str>,
         keyspaces: Option<Vec<&str>>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         let store: &str = {
             if let Some(s) = store {
                 s
             } else {
-                self.store.as_deref().ok_or(MontycatClientError::ClientStoreNotSet)?
+                self.store
+                    .as_deref()
+                    .ok_or(MontycatClientError::ClientStoreNotSet)?
             }
         };
 
         let mut vec: Vec<String> = vec![
-                "revoke-from".into(),
-                "owner".into(),
-                username.into(),
-                "permission".into(),
-                permission.as_str().into(),
-                "store".into(),
-                store.into(),
-            ];
+            "revoke-from".into(),
+            "owner".into(),
+            username.into(),
+            "permission".into(),
+            permission.as_str().into(),
+            "store".into(),
+            store.into(),
+        ];
 
         if let Some(ks_vec) = keyspaces
-            && !ks_vec.is_empty() {
-                vec.push("keyspaces".into());
-                vec.push(ks_vec.join(","));
-            }
+            && !ks_vec.is_empty()
+        {
+            vec.push("keyspaces".into());
+            vec.push(ks_vec.join(","));
+        }
 
         let request: Req = Req::new_raw_command(
             vec,
-            vec![self.username.to_owned(), self.password.to_owned()]
+            vec![self.username.to_owned(), self.password.to_owned()],
         );
 
         let response: Option<Vec<u8>> = send_data(
@@ -559,12 +580,11 @@ impl Engine {
             None,
             None,
             self.use_tls,
-        ).await?;
+        )
+        .await?;
 
         Ok(response)
-
     }
-
 }
 
 #[cfg(test)]

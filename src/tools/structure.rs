@@ -1,12 +1,12 @@
-use std::{collections::HashMap, hash::Hash};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, hash::Hash};
 
 /// Represents a limit with start and stop values.
-/// 
+///
 /// # Fields
 /// - `start: usize` : The starting index of the limit.
 /// - `stop: usize` : The stopping index of the limit.
-/// 
+///
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Limit {
     pub start: usize,
@@ -15,7 +15,7 @@ pub struct Limit {
 
 impl Limit {
     /// Creates a default limit with start and stop set to 0.
-    /// 
+    ///
     /// # Returns
     /// - `Self` : A new instance of `Limit` with default values.
     ///
@@ -24,30 +24,29 @@ impl Limit {
     }
 
     /// Converts the limit into a HashMap representation.
-    /// 
+    ///
     /// # Returns
     /// - `HashMap<String, usize>` : A HashMap with "start" and "stop" keys.
     ///
     pub(crate) fn to_map(&self) -> HashMap<String, usize> {
-        let mut map: HashMap<String,  usize> = HashMap::new();
+        let mut map: HashMap<String, usize> = HashMap::new();
         map.insert("start".to_string(), self.start);
         map.insert("stop".to_string(), self.stop);
         map
     }
 
     /// Creates a new limit with specified start and stop values.
-    /// 
+    ///
     /// # Arguments
     /// - `start: usize` : The starting index of the limit.
     /// - `stop: usize` : The stopping index of the limit.
-    /// 
+    ///
     /// # Returns
     /// - `Self` : A new instance of `Limit` with the specified values.
-    /// 
+    ///
     pub fn new(start: usize, stop: usize) -> Self {
         Self { start, stop }
     }
-
 }
 
 /// Represents a pointer with keyspace and key.
@@ -69,7 +68,7 @@ pub struct Pointer {
 
 impl Pointer {
     /// Creates a new pointer with specified keyspace and key values.
-    /// 
+    ///
     /// # Arguments
     /// - `keyspace: &str` : The keyspace of the pointer.
     /// - `key: &str` : The key of the pointer.
@@ -85,30 +84,29 @@ impl Pointer {
     }
 
     /// Sets the pointer values and returns them as a tuple.
-    /// 
+    ///
     /// # Arguments
     /// - `keyspace: &str` : The keyspace of the pointer.
     /// - `key: &str` : The key of the pointer.
-    /// 
+    ///
     /// # Returns
     /// - `(String, String)` : A tuple containing the keyspace and key.
-    /// 
+    ///
     /// # Examples
     /// ```rust
     /// let (keyspace, key) = Pointer::set_pointer("my_keyspace", "my_key");
     /// ```
-    /// 
+    ///
     /// # Notes
     /// Method to be used when only the tuple representation is needed such as in update operations, lookups, etc.
     ///
     pub fn using(keyspace: &str, key: &str) -> (String, String) {
         (keyspace.to_owned(), key.to_owned())
     }
-
 }
 
 /// Represents a timestamp with an optional timestamp string.
-/// 
+///
 /// # Fields
 /// - `timestamp: Option<String>` : The timestamp string.
 ///
@@ -123,15 +121,14 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
-
     /// Creates a new timestamp with the specified timestamp string.
     ///
     /// # Arguments
     /// - `timestamp: &str` : The timestamp string.
-    /// 
+    ///
     /// # Returns
     /// - `Self` : A new instance of `Timestamp` with the specified value.
-    /// 
+    ///
     pub fn new(timestamp: &str) -> Self {
         Self {
             timestamp: Some(timestamp.to_owned()),
@@ -139,18 +136,18 @@ impl Timestamp {
     }
 
     /// Sets the timestamp value and returns it as a string.
-    /// 
+    ///
     /// # Arguments
     /// - `timestamp: &str` : The timestamp string.
-    /// 
+    ///
     /// # Returns
     /// - `String` : The timestamp string.
-    /// 
+    ///
     /// # Examples
     /// ```rust
     /// let ts_str = Timestamp::using("2024-01-01T00:00:00Z");
     /// ```
-    /// 
+    ///
     /// # Notes
     /// Method to be used when only the string representation is needed such as in update operations.
     ///
@@ -220,10 +217,12 @@ impl Timestamp {
     ///
     pub fn range(start: &str, stop: &str) -> HashMap<String, Vec<String>> {
         let mut map: HashMap<String, Vec<String>> = HashMap::with_capacity(1);
-        map.insert("range_timestamp".to_string(), vec![start.to_owned(), stop.to_owned()]);
+        map.insert(
+            "range_timestamp".to_string(),
+            vec![start.to_owned(), stop.to_owned()],
+        );
         map
     }
-
 }
 
 #[cfg(test)]
@@ -231,7 +230,7 @@ mod tests {
     use super::*;
 
     // ===== Limit Tests =====
-    
+
     #[test]
     fn test_limit_new() {
         let limit = Limit::new(10, 20);
@@ -377,7 +376,10 @@ mod tests {
         let ts = Timestamp::new("2024-03-15T12:30:00Z");
         let serialized = serde_json::to_string(&ts).unwrap();
         let deserialized: Timestamp = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(deserialized.timestamp, Some("2024-03-15T12:30:00Z".to_string()));
+        assert_eq!(
+            deserialized.timestamp,
+            Some("2024-03-15T12:30:00Z".to_string())
+        );
     }
 
     #[test]
@@ -400,10 +402,9 @@ mod tests {
         let ts1 = Timestamp::new("2024-01-01");
         let ts2 = Timestamp::new("1704067200");
         let ts3 = Timestamp::new("2024-01-01T00:00:00.000Z");
-        
+
         assert_eq!(ts1.timestamp, Some("2024-01-01".to_string()));
         assert_eq!(ts2.timestamp, Some("1704067200".to_string()));
         assert_eq!(ts3.timestamp, Some("2024-01-01T00:00:00.000Z".to_string()));
     }
 }
-

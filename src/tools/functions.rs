@@ -1,14 +1,14 @@
-use crate::{errors::MontycatClientError};
-use crate::traits::RuntimeSchema;
-use serde::Serialize;
-use serde_json::{Value, Map};
+use crate::errors::MontycatClientError;
 use crate::request::utis::functions::is_custom_type;
-use std::collections::HashSet;
-use std::{any::type_name};
+use crate::traits::RuntimeSchema;
 use rayon::prelude::*;
+use serde::Serialize;
+use serde_json::{Map, Value};
+use std::any::type_name;
+use std::collections::HashSet;
 
 /// Processes a JSON-serializable value into a JSON string.
-/// 
+///
 /// # Arguments
 /// - `value: &T` : A reference to the value to be serialized.
 ///
@@ -16,7 +16,8 @@ use rayon::prelude::*;
 /// - `Result<String, MontycatClientError>` : The serialized JSON string or an error if serialization fails.
 ///
 pub(crate) fn process_json_value<T>(value: &T) -> Result<String, MontycatClientError>
-where T: Serialize,
+where
+    T: Serialize,
 {
     let value_to_send: String = simd_json::to_string(value)
         .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
@@ -25,10 +26,10 @@ where T: Serialize,
 }
 
 /// Processes a value into a JSON string, handling special fields for pointers and timestamps.
-/// 
+///
 /// # Arguments
 /// - `value: T` : The value to be processed.
-/// 
+///
 /// # Returns
 /// - `Result<String, MontycatClientError>` : The processed JSON string or an error if processing fails.
 ///
@@ -36,11 +37,11 @@ pub(crate) fn process_value<T>(value: T) -> Result<String, MontycatClientError>
 where
     T: Serialize + RuntimeSchema,
 {
-    let pointer_and_timestamp_fields: Vec<(&'static str, &'static str)> = value.pointer_and_timestamp_fields();
+    let pointer_and_timestamp_fields: Vec<(&'static str, &'static str)> =
+        value.pointer_and_timestamp_fields();
     let mut val_as_map: Map<String, Value> = Map::new();
 
     if !pointer_and_timestamp_fields.is_empty() {
-
         let mut pointers: Map<String, Value> = Map::new();
         let mut timestamps: Map<String, Value> = Map::new();
 
@@ -61,11 +62,10 @@ where
 
                     match (pointing_key, pointing_keyspace) {
                         (Some(key), Some(keyspace)) => {
-
                             let content: Value = serde_json::json!([keyspace, key]);
 
                             pointers.insert(field_name.to_string(), content);
-                        },
+                        }
                         _ => {
                             return Err(MontycatClientError::ClientNoValidInputProvided);
                         }
@@ -73,8 +73,9 @@ where
 
                     removal.push(field_name);
                 } else if field_type == "Timestamp" {
-
-                    let timestamp_value: &Value = field_value.get("timestamp").ok_or(MontycatClientError::ClientNoValidInputProvided)?;
+                    let timestamp_value: &Value = field_value
+                        .get("timestamp")
+                        .ok_or(MontycatClientError::ClientNoValidInputProvided)?;
 
                     timestamps.insert(field_name.to_string(), timestamp_value.clone());
                     removal.push(field_name);
@@ -93,7 +94,6 @@ where
         if !timestamps.is_empty() {
             val_as_map.insert("timestamps".into(), timestamps.into());
         }
-
     }
 
     let value_to_send: String = {
@@ -110,7 +110,7 @@ where
 }
 
 /// Determines the Montycat field type for a given Rust type name.
-/// 
+///
 /// # Arguments
 /// * `field_type: &str` - The name of the Rust type.
 ///
@@ -123,7 +123,10 @@ pub(crate) fn define_type(field_type: &str) -> Result<(&'static str, bool), Mont
     let mut nullable = false;
 
     // Detect Option<T>
-    if let Some(inner) = cleaned.strip_prefix("Option<").and_then(|s| s.strip_suffix('>')) {
+    if let Some(inner) = cleaned
+        .strip_prefix("Option<")
+        .and_then(|s| s.strip_suffix('>'))
+    {
         let inner_type = define_type(inner)?;
         nullable = true;
         return Ok((inner_type.0, nullable));
@@ -134,9 +137,8 @@ pub(crate) fn define_type(field_type: &str) -> Result<(&'static str, bool), Mont
         "String" | "&str" | "char" => "String",
 
         // Numbers
-        "i8" | "i16" | "i32" | "i64" | "i128"
-        | "u8" | "u16" | "u32" | "u64" | "u128"
-        | "isize" | "usize" | "f32" | "f64" => "Number",
+        "i8" | "i16" | "i32" | "i64" | "i128" | "u8" | "u16" | "u32" | "u64" | "u128" | "isize"
+        | "usize" | "f32" | "f64" => "Number",
 
         // Boolean
         "bool" => "Boolean",
@@ -154,9 +156,9 @@ pub(crate) fn define_type(field_type: &str) -> Result<(&'static str, bool), Mont
         "Timestamp" => "Timestamp",
 
         _ => {
-            return Err(
-                MontycatClientError::ClientUnsupportedFieldType(field_type.to_owned())
-            )
+            return Err(MontycatClientError::ClientUnsupportedFieldType(
+                field_type.to_owned(),
+            ));
         }
     };
 
@@ -164,18 +166,20 @@ pub(crate) fn define_type(field_type: &str) -> Result<(&'static str, bool), Mont
 }
 
 /// Processes a bulk of JSON-serializable values into a single JSON string and optional schema.
-/// 
+///
 /// # Arguments
 /// - `values: Vec<T>` : A vector of values to be processed.
 ///
 /// # Returns
 /// - `Result<(String, Option<String>), MontycatClientError>` : A result containing the processed JSON string and an optional schema, or an error if processing fails.
 ///
-pub(crate) async fn process_bulk_values<T>(values: Vec<T>) -> Result<(String, Option<String>), MontycatClientError>
-where T: Serialize + RuntimeSchema + Send + 'static,
+pub(crate) async fn process_bulk_values<T>(
+    values: Vec<T>,
+) -> Result<(String, Option<String>), MontycatClientError>
+where
+    T: Serialize + RuntimeSchema + Send + 'static,
 {
     let res: (String, Option<String>) = tokio::task::spawn_blocking(move || {
-
         let serialized_and_schemas: Result<Vec<(String, Option<String>)>, MontycatClientError> =
             values
                 .into_par_iter()
@@ -189,8 +193,14 @@ where T: Serialize + RuntimeSchema + Send + 'static,
 
         let serialized_and_schemas = serialized_and_schemas?;
 
-        let serialized_values: Vec<String> = serialized_and_schemas.iter().map(|(s, _)| s.clone()).collect();
-        let schemas: HashSet<String> = serialized_and_schemas.iter().filter_map(|(_, s)| s.clone()).collect();
+        let serialized_values: Vec<String> = serialized_and_schemas
+            .iter()
+            .map(|(s, _)| s.clone())
+            .collect();
+        let schemas: HashSet<String> = serialized_and_schemas
+            .iter()
+            .filter_map(|(_, s)| s.clone())
+            .collect();
 
         let schema = match schemas.len() {
             0 => None,
@@ -201,10 +211,9 @@ where T: Serialize + RuntimeSchema + Send + 'static,
         let value_to_send: String = process_json_value(&serialized_values)?;
 
         Ok((value_to_send, schema))
-
-    }).await.map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
+    })
+    .await
+    .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
 
     Ok(res)
-
 }
-

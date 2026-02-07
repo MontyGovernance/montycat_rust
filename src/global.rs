@@ -1,32 +1,68 @@
 pub const PRIMITIVE_TYPES: &[&str] = &[
     // --- Scalars ---
-    "bool", "char",
-
+    "bool",
+    "char",
     // --- Integers ---
-    "i8", "i16", "i32", "i64", "i128", "isize",
-    "u8", "u16", "u32", "u64", "u128", "usize",
-
+    "i8",
+    "i16",
+    "i32",
+    "i64",
+    "i128",
+    "isize",
+    "u8",
+    "u16",
+    "u32",
+    "u64",
+    "u128",
+    "usize",
     // --- Floats ---
-    "f32", "f64",
-
+    "f32",
+    "f64",
     // --- Strings & Collections ---
-    "String", "str",
-    "Vec", "VecDeque", "HashMap", "BTreeMap", "HashSet", "BTreeSet",
-    "Option", "Result",
-
+    "String",
+    "str",
+    "Vec",
+    "VecDeque",
+    "HashMap",
+    "BTreeMap",
+    "HashSet",
+    "BTreeSet",
+    "Option",
+    "Result",
     // --- Standard Smart Pointers ---
-    "Box", "Rc", "Arc", "Cell", "RefCell", "Mutex", "RwLock",
-
+    "Box",
+    "Rc",
+    "Arc",
+    "Cell",
+    "RefCell",
+    "Mutex",
+    "RwLock",
     // --- JSON / Serde / External Common ---
-    "Value", "Map", "Number",
-
+    "Value",
+    "Map",
+    "Number",
     // --- Unit and tuples ---
-    "()", "tuple", // Not real type names, but helps cover common cases
-
+    "()",
+    "tuple", // Not real type names, but helps cover common cases
     // --- Common numeric wrappers ---
-    "NonZeroI8", "NonZeroI16", "NonZeroI32", "NonZeroI64", "NonZeroI128", "NonZeroIsize",
-    "NonZeroU8", "NonZeroU16", "NonZeroU32", "NonZeroU64", "NonZeroU128", "NonZeroUsize",
-
+    "NonZeroI8",
+    "NonZeroI16",
+    "NonZeroI32",
+    "NonZeroI64",
+    "NonZeroI128",
+    "NonZeroIsize",
+    "NonZeroU8",
+    "NonZeroU16",
+    "NonZeroU32",
+    "NonZeroU64",
+    "NonZeroU128",
+    "NonZeroUsize",
     // --- Common standard error or marker types ---
-    "Error", "StringError", "Cow", "PhantomData", "Duration", "Instant", "SystemTime",
+    "Error",
+    "StringError",
+    "Cow",
+    "PhantomData",
+    "Duration",
+    "Instant",
+    "SystemTime",
 ];

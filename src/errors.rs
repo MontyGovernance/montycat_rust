@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Represents various client-side errors that can occur in the Montycat Rust client.
-/// 
+///
 /// # Variants
 /// - `ClientEngineError(String)` : Represents errors related to the client engine.
 /// - `ClientValueParsingError(String)` : Represents errors that occur during value parsing.
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// - `ClientAsyncRuntimeError(String)` : Represents errors related to the async runtime.
 /// - `ClientUnsupportedFieldType(String)` : Error for unsupported field types.
 /// - `ClientMultipleSchemasFound` : Error when multiple schemas are found in bulk values.
-/// 
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MontycatClientError {
     ClientEngineError(String),
@@ -30,7 +30,7 @@ pub enum MontycatClientError {
 
 impl MontycatClientError {
     /// Retrieves the error message associated with the MontycatClientError.
-    /// 
+    ///
     /// # Returns
     /// - `String` : The error message.
     ///
@@ -40,14 +40,20 @@ impl MontycatClientError {
             MontycatClientError::ClientValueParsingError(msg) => msg.to_owned(),
             MontycatClientError::ClientGenericError(msg) => msg.to_owned(),
             MontycatClientError::ClientStoreNotSet => "Store is not set in the engine".to_owned(),
-            MontycatClientError::ClientSelectedBothKeyAndCustomKey => "You selected both key and custom key. Choose one".to_owned(),
-            MontycatClientError::ClientSelectedBothPointersValueAndMetadata => "You selected both pointers value and pointers metadata. Choose one".to_owned(),
+            MontycatClientError::ClientSelectedBothKeyAndCustomKey => {
+                "You selected both key and custom key. Choose one".to_owned()
+            }
+            MontycatClientError::ClientSelectedBothPointersValueAndMetadata => {
+                "You selected both pointers value and pointers metadata. Choose one".to_owned()
+            }
             MontycatClientError::ClientNoValidInputProvided => "No valid input provided".to_owned(),
             MontycatClientError::ClientAsyncRuntimeError(msg) => msg.to_owned(),
-            MontycatClientError::ClientMultipleSchemasFound => "Multiple schemas found. Bulk values must have a single schema".to_owned(),
+            MontycatClientError::ClientMultipleSchemasFound => {
+                "Multiple schemas found. Bulk values must have a single schema".to_owned()
+            }
             MontycatClientError::ClientUnsupportedFieldType(ty) => {
                 format!("Unsupported field type: {}", ty)
-            },
+            }
         }
     }
 }
@@ -83,13 +89,19 @@ mod tests {
     #[test]
     fn test_client_selected_both_key_and_custom_key_message() {
         let error = MontycatClientError::ClientSelectedBothKeyAndCustomKey;
-        assert_eq!(error.message(), "You selected both key and custom key. Choose one");
+        assert_eq!(
+            error.message(),
+            "You selected both key and custom key. Choose one"
+        );
     }
 
     #[test]
     fn test_client_selected_both_pointers_value_and_metadata_message() {
         let error = MontycatClientError::ClientSelectedBothPointersValueAndMetadata;
-        assert_eq!(error.message(), "You selected both pointers value and pointers metadata. Choose one");
+        assert_eq!(
+            error.message(),
+            "You selected both pointers value and pointers metadata. Choose one"
+        );
     }
 
     #[test]
@@ -107,7 +119,10 @@ mod tests {
     #[test]
     fn test_client_multiple_schemas_found_message() {
         let error = MontycatClientError::ClientMultipleSchemasFound;
-        assert_eq!(error.message(), "Multiple schemas found. Bulk values must have a single schema");
+        assert_eq!(
+            error.message(),
+            "Multiple schemas found. Bulk values must have a single schema"
+        );
     }
 
     #[test]
