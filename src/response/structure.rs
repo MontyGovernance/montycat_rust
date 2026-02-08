@@ -143,7 +143,6 @@ where
     /// ```
     ///
     pub fn parse_response(bytes: &mut [u8]) -> Result<Self, MontycatClientError> {
-
         let mut response: MontycatStreamResponse<simd_json::OwnedValue> =
             simd_json::from_slice(bytes)
                 .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
