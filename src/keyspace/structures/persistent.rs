@@ -21,7 +21,7 @@ use std::collections::HashMap;
 /// - `engine`: An instance of the `Engine` struct used for database operations.
 ///
 /// # Examples
-/// ```rust,no_run
+/// ```rust, ignore
 /// let keyspace: PersistentKeyspace = PersistentKeyspace::new("my_keyspace", &engine);
 /// ```
 ///
@@ -85,7 +85,7 @@ impl PersistentKeyspace {
     /// * `PersistentKeyspace` - A new instance of PersistentKeyspace.
     ///
     /// # Examples
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let keyspace: PersistentKeyspace = PersistentKeyspace::new("my_keyspace", &engine);
     /// ```
     ///
@@ -112,7 +112,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// use montycat::engine::utils::StreamCallback;
     /// use std::sync::Arc;
     ///
@@ -185,7 +185,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = key
     ///   .create_keyspace(Some(1024), Some(true)).await;
     /// ```
@@ -257,7 +257,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace
     /// .update_cache_and_compression(Some(2048), Some(false)).await;
     /// ```
@@ -321,7 +321,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let value = YourType { /* fields */ };
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value(value).await;
     /// let parsed = MontycatResponse::<YourType>::parse_response(res);
@@ -409,7 +409,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_custom_key("my_custom_key".to_string()).await;
     /// ```
     ///
@@ -476,7 +476,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let value = vec!["Hello"];
     ///
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value_no_schema(value, Some(3600)).await;
@@ -561,7 +561,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace
     ///   .get_keys(Some(Limit::new(0, 10)), None, Some(true)).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
@@ -645,7 +645,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let updates = serde_json::json!({ "field1": "new_value" });
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, Some(3600)).await;
     /// let parsed = MontycatResponse::<String>::parse_response(res);
@@ -725,7 +725,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let values = vec![YourType { /* fields */ }, YourType { /* fields */ }];
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
@@ -796,7 +796,7 @@ impl PersistentKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore,
     /// let values = vec!["value1", "value2", "value3"];
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);

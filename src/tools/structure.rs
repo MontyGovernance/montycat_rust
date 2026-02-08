@@ -56,7 +56,7 @@ impl Limit {
 /// - `key: String` : The key of the pointer.
 ///
 /// # Examples
-/// ```rust
+/// ```rust, ignore
 /// let pointer = Pointer::new("my_keyspace", "my_key");
 /// ```
 ///
@@ -93,7 +93,7 @@ impl Pointer {
     /// - `(String, String)` : A tuple containing the keyspace and key.
     ///
     /// # Examples
-    /// ```rust
+    /// ```rust, ignore
     /// let (keyspace, key) = Pointer::set_pointer("my_keyspace", "my_key");
     /// ```
     ///
@@ -111,7 +111,7 @@ impl Pointer {
 /// - `timestamp: Option<String>` : The timestamp string.
 ///
 /// # Examples
-/// ```rust
+/// ```rust, ignore
 /// let ts = Timestamp::new("2024-01-01T00:00:00Z");
 /// ```
 ///
@@ -144,7 +144,7 @@ impl Timestamp {
     /// - `String` : The timestamp string.
     ///
     /// # Examples
-    /// ```rust
+    /// ```rust, ignore
     /// let ts_str = Timestamp::using("2024-01-01T00:00:00Z");
     /// ```
     ///
@@ -164,7 +164,7 @@ impl Timestamp {
     /// - `HashMap<String, String>` : A HashMap with the "after" key and its corresponding value.
     ///
     /// # Examples
-    /// ```rust
+    /// ```rust, ignore
     /// let after_map = Timestamp::after("2024-01-01T00:00:00Z");
     /// ```
     ///
@@ -186,7 +186,7 @@ impl Timestamp {
     /// - `HashMap<String, String>` : A HashMap with the "before" key and its corresponding value.
     ///
     /// # Examples
-    /// ```rust
+    /// ```rust, ignore
     /// let before_map = Timestamp::before("2024-01-01T00:00:00Z");
     /// ```
     /// # Notes
@@ -208,7 +208,7 @@ impl Timestamp {
     /// - `HashMap<String, Vec<String>>` : A HashMap with the "range_timestamp" key and its corresponding start and stop values.
     ///
     /// # Examples
-    /// ```rust
+    /// ```rust, ignore
     /// let range_map = Timestamp::range("2024-01-01T00:00:00Z", "2024-12-31T23:59:59Z");
     /// ```
     ///

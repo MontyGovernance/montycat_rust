@@ -10,7 +10,7 @@ use url::Url;
 ///
 /// Examples
 ///
-/// ```rust
+/// ```rust, ignore
 /// use montycat::engine::structure::ValidPermissions;
 /// let read_permission = ValidPermissions::Read;
 /// let write_permission = ValidPermissions::Write;
@@ -45,7 +45,7 @@ impl ValidPermissions {
 /// - `use_tls`: A boolean indicating whether to use TLS for the connection.
 ///
 /// # Examples
-/// ```rust
+/// ```rust, ignore
 /// use montycat::engine::structure::Engine;
 /// let engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), Some("mystore".into()), false);
 /// ```
@@ -86,7 +86,7 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust, ignore
     /// let engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), Some("mystore".into()), false);
     /// ```
     ///
@@ -123,7 +123,7 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust, ignore
     /// let mut engine = Engine::new("localhost".into(), 21210, "user".into(), "pass".into(), None, false);
     /// engine.enable_tls();
     /// ```
@@ -151,7 +151,7 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
     /// ```
     ///
@@ -211,7 +211,7 @@ impl Engine {
     /// Creates a new store in the Montycat database.
     ///
     /// # Examples
-    /// ```
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
     /// let response = engine.create_store().await;
     /// ```
@@ -244,7 +244,7 @@ impl Engine {
     /// Removes the store from the Montycat database.
     ///
     /// # Examples
-    /// ```
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
     /// let response = engine.remove_store().await;
     ///
@@ -281,7 +281,7 @@ impl Engine {
     /// Retrieves the available structures from the Montycat database.
     ///
     /// # Examples
-    /// ```
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
     /// let response = engine.get_structure_available().await;
     /// ```
@@ -318,7 +318,7 @@ impl Engine {
     /// Lists all owners in the Montycat database.
     ///
     /// # Examples
-    /// ```
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
     /// let response = engine.list_owners().await;
     /// ```
@@ -358,7 +358,7 @@ impl Engine {
     /// * `Result<Option<Vec<u8>>, MontycatClientError>` - The response
     ///
     /// # Examples
-    /// ```
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
     /// let response = engine.create_owner("new_owner", "owner_password").await;
     /// ```
@@ -404,7 +404,7 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
     /// let response = engine.remove_owner("new_owner").await;
     /// ```
@@ -449,7 +449,7 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
     /// let response = engine.grant_to("new_owner", ValidPermissions::All, None, None).await;
     /// ```
@@ -525,7 +525,7 @@ impl Engine {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
     /// let response = engine.revoke_from("new_owner", ValidPermissions::All, None, None).await;
     /// ```

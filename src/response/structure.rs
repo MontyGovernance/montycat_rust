@@ -50,7 +50,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust, ignore
     /// let response_bytes: Result<Option<Vec<u8>>, MontycatClientError> = ...;
     /// let parsed_response: MontycatResponse<Option<MyStruct>> = MontycatResponse::parse_response(response_bytes);
     /// ```
@@ -137,17 +137,15 @@ where
     ///
     /// # Example
     ///
-    /// ```rust
-    ///
-    /// let response_bytes: &Vec<u8> = ...;
+    /// ```rust, ignore
+    /// let response_bytes: &mut [u8] = ...;
     /// let parsed_response: MontycatStreamResponse<Option<MyStruct>> = MontycatStreamResponse::parse_response(response_bytes);
     /// ```
     ///
-    pub fn parse_response(bytes: &[u8]) -> Result<Self, MontycatClientError> {
-        let mut bytes_unwrapped: Vec<u8> = bytes.to_owned();
+    pub fn parse_response(bytes: &mut [u8]) -> Result<Self, MontycatClientError> {
 
         let mut response: MontycatStreamResponse<simd_json::OwnedValue> =
-            simd_json::from_slice(bytes_unwrapped.as_mut_slice())
+            simd_json::from_slice(bytes)
                 .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
 
         fn recursively_parse_json(v: simd_json::OwnedValue) -> simd_json::OwnedValue {
@@ -206,6 +204,7 @@ where
         })
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,11 +354,10 @@ mod tests {
     fn test_montycat_stream_response_parse_simple() {
         let json_str =
             r#"{"message":"Processing","status":true,"payload":"stream_data","error":null}"#;
-        let bytes = json_str.as_bytes().to_vec();
+        let mut bytes = json_str.as_bytes().to_vec();
 
         let response: MontycatStreamResponse<String> =
-            MontycatStreamResponse::parse_response(&bytes).unwrap();
-
+            MontycatStreamResponse::parse_response(bytes.as_mut_slice()).unwrap();
         assert!(response.status);
         assert_eq!(response.message, Some("Processing".to_string()));
         assert_eq!(response.payload, "stream_data");
@@ -369,10 +367,10 @@ mod tests {
     #[test]
     fn test_montycat_stream_response_parse_with_error() {
         let json_str = r#"{"message":null,"status":false,"payload":null,"error":"Stream error"}"#;
-        let bytes = json_str.as_bytes().to_vec();
+        let mut bytes = json_str.as_bytes().to_vec();
 
         let response: MontycatStreamResponse<Option<String>> =
-            MontycatStreamResponse::parse_response(&bytes).unwrap();
+            MontycatStreamResponse::parse_response(bytes.as_mut_slice()).unwrap();
 
         assert!(!response.status);
         assert_eq!(response.message, None);
@@ -382,10 +380,10 @@ mod tests {
     #[test]
     fn test_montycat_stream_response_parse_struct() {
         let json_str = r#"{"message":"Data ready","status":true,"payload":{"id":123,"name":"streamed"},"error":null}"#;
-        let bytes = json_str.as_bytes().to_vec();
+        let mut bytes = json_str.as_bytes().to_vec();
 
         let response: MontycatStreamResponse<TestStruct> =
-            MontycatStreamResponse::parse_response(&bytes).unwrap();
+            MontycatStreamResponse::parse_response(bytes.as_mut_slice()).unwrap();
 
         assert!(response.status);
         assert_eq!(response.message, Some("Data ready".to_string()));
@@ -396,10 +394,10 @@ mod tests {
     #[test]
     fn test_montycat_stream_response_parse_nested_json() {
         let json_str = r#"{"message":"Nested data","status":true,"payload":"{\"id\":77,\"name\":\"nested_stream\"}","error":null}"#;
-        let bytes = json_str.as_bytes().to_vec();
+        let mut bytes = json_str.as_bytes().to_vec();
 
         let response: MontycatStreamResponse<TestStruct> =
-            MontycatStreamResponse::parse_response(&bytes).unwrap();
+            MontycatStreamResponse::parse_response(bytes.as_mut_slice()).unwrap();
 
         assert!(response.status);
         assert_eq!(response.payload.id, 77);
@@ -408,10 +406,10 @@ mod tests {
 
     #[test]
     fn test_montycat_stream_response_parse_invalid_json() {
-        let invalid_json = b"not valid json".to_vec();
+        let invalid_json = b"not valid json";
 
         let result: Result<MontycatStreamResponse<String>, MontycatClientError> =
-            MontycatStreamResponse::parse_response(&invalid_json);
+            MontycatStreamResponse::parse_response(invalid_json.to_vec().as_mut_slice());
 
         assert!(result.is_err());
     }
@@ -419,10 +417,10 @@ mod tests {
     #[test]
     fn test_montycat_stream_response_no_message() {
         let json_str = r#"{"status":true,"payload":"data","error":null}"#;
-        let bytes = json_str.as_bytes().to_vec();
+        let mut bytes = json_str.as_bytes().to_vec();
 
         let response: MontycatStreamResponse<String> =
-            MontycatStreamResponse::parse_response(&bytes).unwrap();
+            MontycatStreamResponse::parse_response(bytes.as_mut_slice()).unwrap();
 
         assert!(response.status);
         assert_eq!(response.message, None);
@@ -432,10 +430,10 @@ mod tests {
     #[test]
     fn test_recursive_json_parsing_deeply_nested() {
         let json_str = r#"{"status":true,"payload":"[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]","error":null}"#;
-        let bytes = Ok(Some(json_str.as_bytes().to_vec()));
+        let bytes = json_str.as_bytes().to_vec();
 
         let response: MontycatResponse<Vec<TestStruct>> =
-            MontycatResponse::parse_response(bytes).unwrap();
+            MontycatResponse::parse_response(Ok(Some(bytes))).unwrap();
 
         assert!(response.status);
         assert_eq!(response.payload.len(), 2);

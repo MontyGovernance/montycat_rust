@@ -14,7 +14,7 @@ use tokio_rustls::{
     rustls::{ClientConfig, RootCertStore},
 };
 
-pub(crate) type StreamCallback = Arc<dyn Fn(&Vec<u8>) + Send + Sync>;
+pub(crate) type StreamCallback = Arc<dyn Fn(&mut [u8]) + Send + Sync>;
 
 const CHUNK_SIZE: usize = 1024 * 256;
 
@@ -197,7 +197,7 @@ pub(crate) async fn send_data(
 
             if buf.contains(&b'\n') {
                 if let Some(ref cb) = callback {
-                    cb(&buf);
+                    cb(buf.as_mut_slice());
                 }
                 buf.clear();
             }

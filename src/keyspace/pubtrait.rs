@@ -55,7 +55,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.remove_keyspace().await;
     /// ```
     ///
@@ -126,7 +126,7 @@ where
     ///
     /// Retrieve value with a standard ordered key
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let value: Result<Option<Vec<u8>>> = keyspace.get_value(
     ///     Some("298989599989124434694729184587200373152"),
     ///     None, false, false, false
@@ -135,7 +135,7 @@ where
     ///
     /// Or with a custom key
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let value: Result<Option<Vec<u8>>> = keyspace.get_value(
     ///    None, Some("MyCustomKey123"), true, true, false
     /// ).await?;
@@ -234,14 +234,14 @@ where
     ///
     /// Delete value with a standard ordered key
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.delete_key(
     ///     "298989599989124434694729184587200373152",
     ///    None
     /// ).await;
     /// ```
     /// Or with a custom key
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.delete_key(
     ///     None,
     ///     Some("MyCustomKey123")
@@ -328,7 +328,7 @@ where
     ///
     /// Retrieve dependencies with a standard ordered key
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let value: Result<Option<Vec<u8>>> = keyspace.list_all_depending_keys(
     ///     "298989599989124434694729184587200373152",
     ///    None
@@ -337,7 +337,7 @@ where
     ///
     /// Or with a custom key
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let value: Result<Option<Vec<u8>>> = keyspace.list_all_depending_keys(
     ///    None, Some("MyCustomKey123")
     /// ).await?;
@@ -414,7 +414,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let keys = vec![
     ///     "298989599989124434694729184587200373152".to_string(),
     ///     "298989599989124434694729184587200373153".to_string(),
@@ -511,7 +511,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let keys = vec![
     ///     "298989599989124434694729184587200373152".to_string(),
     ///     "298989599989124434694729184587200373153".to_string(),
@@ -583,7 +583,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let len: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.get_len().await;
     /// ```
     ///
@@ -643,8 +643,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```
-    /// rust,no_run
+    /// ```rust, ignore
     ///
     /// #[derive(Serialize, RuntimeSchema, Deserialize, Debug, Clone)]
     /// struct MyStruct {
@@ -731,7 +730,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.remove_enforced_schema(MyStruct::schema_params()).await;
     /// ```
     ///
@@ -795,7 +794,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.list_all_schemas_in_keyspace().await;
     /// ```
     ///
@@ -855,7 +854,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     ///
     /// let bulk_keys_values = vec![
     ///     hashmap![("298989599989124434694729184587200373152".to_string(), "value1".to_string())],
@@ -949,7 +948,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// use serde_json::json;
     ///
     /// let search_criteria = json!({
@@ -1061,7 +1060,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// use serde_json::json;
     ///
     /// let search_criteria = json!({

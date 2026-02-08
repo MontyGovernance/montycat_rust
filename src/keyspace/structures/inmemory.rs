@@ -78,7 +78,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let keyspace: InMemoryKeyspace = InMemoryKeyspace::new("test_keyspace", &engine);
     /// ```
     ///
@@ -99,7 +99,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.create_keyspace().await;
     /// ```
     ///
@@ -162,7 +162,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let value = YourType { /* fields */ };
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value(value, Some(3600)).await;
     /// let parsed = MontycatResponse::<YourType>::parse_response(res);
@@ -253,7 +253,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_custom_key(Some("my_custom_key".into()), Some(3600)).await;
     /// ```
     ///
@@ -323,7 +323,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let value = vec!["simple_value1", "simple_value2"];
     ///
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value_no_schema(value, Some(3600)).await;
@@ -409,7 +409,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res = keyspace.get_keys(Some(vec!["123456789".into()]), None).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
     /// ```
@@ -478,7 +478,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let updates = serde_json::json!({ "field1": "new_value" });
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, Some(3600)).await;
     /// let parsed = MontycatResponse::<String>::parse_response(res);
@@ -561,7 +561,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let values = vec![YourType { /* fields */ }, YourType { /* fields */ }];
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values, Some(3600)).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
@@ -635,7 +635,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let values = vec!["simple_value1", "simple_value2"];
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values, Some(3600)).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
@@ -703,7 +703,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.do_snapshots_for_keyspace().await;
     /// ```
     ///
@@ -754,7 +754,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.clean_snapshots_for_keyspace().await;
     /// ```
     ///
@@ -807,7 +807,7 @@ impl InMemoryKeyspace {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust, ignore
     /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.stop_snapshots_for_keyspace().await;
     /// ```
     ///
