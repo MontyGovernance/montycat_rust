@@ -1,2 +1,2 @@
-pub mod persistent;
 pub mod inmemory;
+pub mod persistent;

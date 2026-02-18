@@ -1,2 +1,2 @@
-pub mod structure;
 pub mod functions;
+pub mod structure;

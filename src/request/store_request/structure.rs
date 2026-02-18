@@ -1,8 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 /// Represents a store request to be sent to the Montycat server from the client side.
-/// 
+///
 /// # Fields
 /// - `schema: Option<String>` : The schema to be used.
 /// - `username: String` : The username for authentication.
@@ -28,7 +28,6 @@ use serde::{Serialize, Deserialize};
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub(crate) struct StoreRequestClient {
-
     pub schema: Option<String>,
     pub username: String,
     pub password: String,
@@ -51,5 +50,4 @@ pub(crate) struct StoreRequestClient {
     pub volumes: Vec<String>,
     pub latest_volume: bool,
     pub pointers_metadata: bool,
-
 }

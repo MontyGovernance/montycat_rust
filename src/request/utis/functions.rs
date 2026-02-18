@@ -1,10 +1,10 @@
-use std::{fmt::Display};
-use xxhash_rust::xxh32::xxh32;
 use crate::{MontycatClientError, global::PRIMITIVE_TYPES, tools::functions::process_json_value};
-use std::collections::HashMap;
-use serde::Serialize;
-use rayon::prelude::*;
 use indexmap::IndexMap;
+use rayon::prelude::*;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::fmt::Display;
+use xxhash_rust::xxh32::xxh32;
 
 /// Converts a custom key (integer or string) into a hashed value using xxHash.
 ///
@@ -48,8 +48,10 @@ pub(crate) fn is_custom_type(type_name: &str) -> Option<&str> {
 /// # Returns
 /// * `Result<Vec<String>, MontycatClientError>` - A result containing the merged vector of keys or an error if no valid input is provided.
 ///
-pub(crate) async fn merge_keys(bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>) -> Result<Vec<String>, MontycatClientError> {
-
+pub(crate) async fn merge_keys(
+    bulk_keys: Option<Vec<String>>,
+    bulk_custom_keys: Option<Vec<String>>,
+) -> Result<Vec<String>, MontycatClientError> {
     if bulk_keys.is_none() && bulk_custom_keys.is_none() {
         return Err(MontycatClientError::ClientNoValidInputProvided);
     }
@@ -58,10 +60,9 @@ pub(crate) async fn merge_keys(bulk_keys: Option<Vec<String>>, bulk_custom_keys:
     let custom_keys_clone: Option<Vec<String>> = bulk_custom_keys.clone();
 
     let keys_processed: Vec<String> = tokio::task::spawn_blocking(move || {
-
         let mut keys_merged: Vec<String> = Vec::with_capacity(
             bulk_keys_clone.as_ref().map_or(0, |v| v.len())
-            + custom_keys_clone.as_ref().map_or(0, |v| v.len())
+                + custom_keys_clone.as_ref().map_or(0, |v| v.len()),
         );
 
         if let Some(bulk_keys) = bulk_keys_clone {
@@ -73,15 +74,15 @@ pub(crate) async fn merge_keys(bulk_keys: Option<Vec<String>>, bulk_custom_keys:
         }
 
         keys_merged
-
-    }).await.map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))?;
 
     if keys_processed.is_empty() {
         return Err(MontycatClientError::ClientNoValidInputProvided);
     }
 
     Ok(keys_processed)
-
 }
 
 /// Merges bulk key-value pairs and custom key-value pairs into a single HashMap.
@@ -125,7 +126,6 @@ where
             .collect::<Result<HashMap<_, _>, MontycatClientError>>()?;
 
         Ok::<_, MontycatClientError>(serialized)
-
     })
     .await
     .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
@@ -134,7 +134,7 @@ where
 }
 
 /// Fulfills a subscription request by creating the appropriate byte vector to be sent to the Montycat server.
-/// 
+///
 /// # Arguments
 /// - `store: &str` : The store to subscribe to.
 /// - `keyspace: &str` : The keyspace to subscribe to.
@@ -145,21 +145,38 @@ where
 /// # Returns
 /// - `Result<Vec<u8>, MontycatClientError>` : A result containing the byte vector for the subscription request or an error if serialization fails.
 ///
-pub(crate) fn fulfil_subscription_request(store: &str, keyspace: &str, key: Option<String>, username: &str, password: &str) -> Result<Vec<u8>, MontycatClientError> {
-
+pub(crate) fn fulfil_subscription_request(
+    store: &str,
+    keyspace: &str,
+    key: Option<String>,
+    username: &str,
+    password: &str,
+) -> Result<Vec<u8>, MontycatClientError> {
     let mut indexmap = IndexMap::new();
 
     indexmap.insert("subscribe".to_string(), serde_json::Value::Bool(true));
-    indexmap.insert("store".to_string(), serde_json::Value::String(store.to_owned()));
-    indexmap.insert("keyspace".to_string(), serde_json::Value::String(keyspace.to_owned()));
+    indexmap.insert(
+        "store".to_string(),
+        serde_json::Value::String(store.to_owned()),
+    );
+    indexmap.insert(
+        "keyspace".to_string(),
+        serde_json::Value::String(keyspace.to_owned()),
+    );
     if let Some(k) = key {
         indexmap.insert("key".to_string(), serde_json::Value::String(k));
     }
-    indexmap.insert("username".to_string(), serde_json::Value::String(username.to_owned()));
-    indexmap.insert("password".to_string(), serde_json::Value::String(password.to_owned()));
+    indexmap.insert(
+        "username".to_string(),
+        serde_json::Value::String(username.to_owned()),
+    );
+    indexmap.insert(
+        "password".to_string(),
+        serde_json::Value::String(password.to_owned()),
+    );
 
-    let bytes = serde_json::to_vec(&indexmap).map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
+    let bytes = serde_json::to_vec(&indexmap)
+        .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
 
     Ok(bytes)
-
 }
