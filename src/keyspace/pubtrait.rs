@@ -369,13 +369,25 @@ where Self: Sized + Send + Sync
     /// * Returns MontycatClientError if there is an error with the engine
     /// * Returns MontycatClientError if there is an error parsing the response
     ///
-    async fn get_bulk(&self, bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool, limit: Option<Limit>) -> Result<Option<Vec<u8>>, MontycatClientError> {
+    async fn get_bulk(&self, bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool, limit: Option<Limit>, volumes: Option<Vec<String>>, latest_volume: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
         if with_pointers && with_pointers_metadata {
             return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
         }
 
         let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
+
+        let selected_options = [
+            !processed_keys.is_empty(),
+            volumes.as_ref().map_or(false, |v| !v.is_empty()),
+            latest_volume.unwrap_or(false)
+        ].iter().filter(|&&x| x).count();
+
+        if selected_options != 1 {
+            return Err(MontycatClientError::ClientGenericError(
+                "Multiple conflicting options provided. Please provide exactly one of the following: keys, volumes, or latest volume.".into()
+            ));
+        }
 
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
