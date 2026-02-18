@@ -406,6 +406,13 @@ where
     /// # Arguments
     ///
     /// * `bulk_keys` - A vector of keys to retrieve values for
+    /// * `bulk_custom_keys` - A vector of custom keys to retrieve values for
+    /// * `with_pointers` - Whether to include pointers in the returned values
+    /// * `key_included` - Whether to include the keys in the returned values
+    /// * `with_pointers_metadata` - Whether to include metadata about pointers in the returned values
+    /// * `limit` - An optional Limit struct to limit the number of returned values
+    /// * `volumes` - An optional vector of volume names to filter the returned values
+    /// * `latest_volume` - An optional boolean to indicate whether to only return values from the latest volume
     ///
     /// # Behavior
     ///
@@ -427,6 +434,8 @@ where
     /// * Returns MontycatClientError if the store is not set in the engine
     /// * Returns MontycatClientError if there is an error with the engine
     /// * Returns MontycatClientError if there is an error parsing the response
+    /// * Returns MontycatClientError if both with_pointers and with_pointers_metadata are true
+    /// * Returns MontycatClientError if multiple conflicting options are provided (keys, volumes, latest_volume)
     ///
     async fn get_bulk(&self, bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool, limit: Option<Limit>, volumes: Option<Vec<String>>, latest_volume: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
 
