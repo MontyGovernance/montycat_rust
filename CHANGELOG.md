@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4]
+## Added
+- Volume-Based Bulk Retrieval
+- Volume Filtering in get_bulk()
+- Added support for retrieving values by specific volumes within the get_bulk() function.
+- Enables targeted data access across selected storage volumes.
+- Improves flexibility for multi-volume environments and sharded datasets.
+- Latest Volume Retrieval
+- Introduced latest_volume flag in get_bulk() to fetch values only from the most recent volume.
+- Ensures efficient access to the newest version of data without scanning all volumes.
+- Optimized for versioned and time-based storage architectures.
+
+### Improved
+- Performance & Query Precision
+- Enhanced internal filtering logic to reduce unnecessary volume scans.
+- Improved bulk query execution flow when volumes and latest_volume are specified.
+- More deterministic behavior when both filtering options are used together.
+
+### Technical Notes
+`get_bulk()` now supports:
+volumes: `Option<Vec<String>>`
+latest_volume: `Option<bool>`
+
+- Fully backward compatible — existing calls without volume parameters behave as before.
+
+### Testing
+- Extended unit tests to cover:
+- Volume-specific retrieval scenarios
+- Latest volume resolution logic
+- Combined filtering edge cases
+- All existing tests pass successfully.
+
 ## [1.0.3]
 
 ### Added

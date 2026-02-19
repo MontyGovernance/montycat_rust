@@ -437,8 +437,18 @@ where
     /// * Returns MontycatClientError if both with_pointers and with_pointers_metadata are true
     /// * Returns MontycatClientError if multiple conflicting options are provided (keys, volumes, latest_volume)
     ///
-    async fn get_bulk(&self, bulk_keys: Option<Vec<String>>, bulk_custom_keys: Option<Vec<String>>, with_pointers: bool, key_included: bool, with_pointers_metadata: bool, limit: Option<Limit>, volumes: Option<Vec<String>>, latest_volume: Option<bool>) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
+    #[allow(clippy::too_many_arguments)]
+    async fn get_bulk(
+        &self,
+        bulk_keys: Option<Vec<String>>,
+        bulk_custom_keys: Option<Vec<String>>,
+        with_pointers: bool,
+        key_included: bool,
+        with_pointers_metadata: bool,
+        limit: Option<Limit>,
+        volumes: Option<Vec<String>>,
+        latest_volume: Option<bool>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         if with_pointers && with_pointers_metadata {
             return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
         }
@@ -447,9 +457,12 @@ where
 
         let selected_options = [
             !processed_keys.is_empty(),
-            volumes.as_ref().map_or(false, |v| !v.is_empty()),
-            latest_volume.unwrap_or(false)
-        ].iter().filter(|&&x| x).count();
+            volumes.as_ref().is_some_and(|v| !v.is_empty()),
+            latest_volume.unwrap_or(false),
+        ]
+        .iter()
+        .filter(|&&x| x)
+        .count();
 
         if selected_options != 1 {
             return Err(MontycatClientError::ClientGenericError(
