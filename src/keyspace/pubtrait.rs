@@ -454,7 +454,7 @@ where
 
         let selected_options = [
             !processed_keys.is_empty(),
-            volumes.as_ref().is_some_and(|v| !v.is_empty()) || latest_volume.unwrap_or(false),
+            volumes.as_ref().is_some_and(|v| !v.is_empty()) || latest_volume.unwrap_or(false) || limit.is_some(),
         ]
         .iter()
         .filter(|&&x| x)
@@ -462,7 +462,7 @@ where
 
         if selected_options != 1 {
             return Err(MontycatClientError::ClientGenericError(
-                "Multiple conflicting options provided. Please provide keys or volumes/latest volume.".into()
+                "Please provide keys or volumes/latest volume or limit.".into()
             ));
         }
 
