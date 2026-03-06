@@ -454,7 +454,7 @@ where
 
         let selected_options = [
             !processed_keys.is_empty(),
-            volumes.as_ref().is_some_and(|v| !v.is_empty()) || latest_volume.unwrap_or(false) || limit.is_some(),
+            volumes.as_ref().is_some_and(|v| !v.is_empty()) || latest_volume.unwrap_or(false) || limit.is_some() && (limit.as_ref().unwrap_or(&Limit::default()).start != 0 || limit.as_ref().unwrap_or(&Limit::default()).stop != 0),
         ]
         .iter()
         .filter(|&&x| x)
