@@ -449,16 +449,12 @@ where
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if with_pointers && with_pointers_metadata {
-            return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
-        }
 
         let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
 
         let selected_options = [
             !processed_keys.is_empty(),
-            volumes.as_ref().is_some_and(|v| !v.is_empty()),
-            latest_volume.unwrap_or(false),
+            volumes.as_ref().is_some_and(|v| !v.is_empty()) || latest_volume.unwrap_or(false) || limit.is_some() && (limit.as_ref().unwrap_or(&Limit::default()).start != 0 || limit.as_ref().unwrap_or(&Limit::default()).stop != 0),
         ]
         .iter()
         .filter(|&&x| x)
@@ -466,7 +462,7 @@ where
 
         if selected_options != 1 {
             return Err(MontycatClientError::ClientGenericError(
-                "Multiple conflicting options provided. Please provide exactly one of the following: keys, volumes, or latest volume.".into()
+                "Please provide keys or volumes/latest volume or limit.".into()
             ));
         }
 
