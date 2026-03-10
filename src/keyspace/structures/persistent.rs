@@ -579,11 +579,12 @@ impl PersistentKeyspace {
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-
         if volumes.is_none()
-        && latest_volume.unwrap_or(false)
-        && ( limit.is_none()
-        || (limit.as_ref().unwrap_or(&Limit::default()).start == 0 && limit.as_ref().unwrap_or(&Limit::default()).stop == 0)) {
+            && latest_volume.unwrap_or(false)
+            && (limit.is_none()
+                || (limit.as_ref().unwrap_or(&Limit::default()).start == 0
+                    && limit.as_ref().unwrap_or(&Limit::default()).stop == 0))
+        {
             return Err(MontycatClientError::ClientGenericError(
                 "Please provide volumes/latest volume or limit.".into(),
             ));
