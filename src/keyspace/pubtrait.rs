@@ -159,7 +159,7 @@ where
         key_included: bool,
         with_pointers_metadata: bool,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if key.is_none() && custom_key.is_none() {
+        if key.is_some() && custom_key.is_some() {
             return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
         }
 
