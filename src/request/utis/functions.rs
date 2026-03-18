@@ -148,6 +148,7 @@ where
 pub(crate) fn fulfil_subscription_request(
     store: &str,
     keyspace: &str,
+    persistent: bool,
     key: Option<String>,
     username: &str,
     password: &str,
@@ -162,6 +163,10 @@ pub(crate) fn fulfil_subscription_request(
     indexmap.insert(
         "keyspace".to_string(),
         serde_json::Value::String(keyspace.to_owned()),
+    );
+    indexmap.insert(
+        "persistent".to_string(),
+        serde_json::Value::Bool(persistent),
     );
     if let Some(k) = key {
         indexmap.insert("key".to_string(), serde_json::Value::String(k));

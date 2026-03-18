@@ -4,7 +4,9 @@ use crate::{
     request::{
         store_request::structure::StoreRequestClient,
         structure::Req,
-        utis::functions::{convert_custom_key, merge_bulk_keys_values, merge_keys},
+        utis::functions::{
+            convert_custom_key, fulfil_subscription_request, merge_bulk_keys_values, merge_keys,
+        },
     },
     tools::functions::{define_type, process_json_value},
 };
@@ -455,18 +457,18 @@ where
 
         let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
 
-        let selected_options = [
-            !processed_keys.is_empty(),
-            volumes.as_ref().is_some_and(|v| !v.is_empty()),
-            latest_volume.unwrap_or(false),
-        ]
-        .iter()
-        .filter(|&&x| x)
-        .count();
+        let has_keys = !processed_keys.is_empty();
+        let has_volumes = volumes.as_ref().is_some_and(|v| !v.is_empty());
+        let has_latest_volume = latest_volume.unwrap_or(false);
+        let has_limit = limit
+            .as_ref()
+            .is_some_and(|lim| lim.start != 0 || lim.stop != 0);
 
-        if selected_options != 1 {
+        let has_range_options = has_volumes || has_latest_volume || has_limit;
+
+        if (has_keys && has_range_options) || (!has_keys && !has_range_options) {
             return Err(MontycatClientError::ClientGenericError(
-                "Multiple conflicting options provided. Please provide exactly one of the following: keys, volumes, or latest volume.".into()
+                "Please provide keys OR (volumes/latest volume and/or limit).".into(),
             ));
         }
 
@@ -481,7 +483,7 @@ where
         let use_tls: bool = engine.use_tls;
         let command: String = "get_bulk".to_string();
 
-        let limit_map: HashMap<String, usize> = match limit {
+        let limit_map: HashMap<String, usize> = match &limit {
             Some(lim) => {
                 if lim.start > lim.stop {
                     return Err(MontycatClientError::ClientGenericError(
@@ -497,6 +499,8 @@ where
         let new_store_req: StoreRequestClient = StoreRequestClient {
             bulk_keys: processed_keys,
             keyspace: name.to_owned(),
+            volumes: volumes.unwrap_or_default(),
+            latest_volume: latest_volume.unwrap_or(false),
             store,
             persistent,
             distributed,
@@ -1184,5 +1188,87 @@ where
         .await?;
 
         Ok(response)
+    }
+
+    /// Subscribes to changes in the persistent keyspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Optional key to subscribe to.
+    /// * `custom_key` - Optional custom key to subscribe to.
+    /// * `callback` - Callback function to handle incoming subscription data.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tokio::sync::watch::Sender<bool>, MontycatClientError>` - A sender to stop the subscription or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust, ignore,
+    /// use montycat::engine::utils::StreamCallback;
+    /// use std::sync::Arc;
+    ///
+    /// let callback: StreamCallback = Arc::new(|data: &Vec<u8>| {
+    ///   println!("Received data: {:?}", data);
+    /// });
+    ///
+    /// let stop_tx = keyspace.subscribe(Some("my_key".into()), None, callback).await?;
+    /// // To stop the subscription:
+    /// // stop_tx.send(true)?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
+    /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
+    async fn subscribe(
+        &self,
+        key: Option<String>,
+        custom_key: Option<String>,
+        callback: crate::engine::utils::StreamCallback,
+    ) -> Result<tokio::sync::watch::Sender<bool>, MontycatClientError> {
+        let (stop_tx, mut stop_rx) = tokio::sync::watch::channel::<bool>(false);
+
+        let engine = self.get_engine();
+        let name = self.get_name();
+        let store = engine
+            .store
+            .as_ref()
+            .ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let persistent = self.get_persistent();
+
+        let use_tls = engine.use_tls;
+
+        let key = {
+            if key.is_some() && custom_key.is_some() {
+                return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
+            }
+            key.or(custom_key)
+        };
+
+        let port = engine.port + 1;
+        let request_bytes = fulfil_subscription_request(
+            store,
+            name,
+            persistent,
+            key,
+            &engine.username,
+            &engine.password,
+        )?;
+
+        let host = engine.host.clone();
+        tokio::spawn(async move {
+            let _ = send_data(
+                &host,
+                port,
+                request_bytes.as_slice(),
+                Some(callback),
+                Some(&mut stop_rx),
+                use_tls,
+            )
+            .await;
+        });
+
+        Ok(stop_tx)
     }
 }

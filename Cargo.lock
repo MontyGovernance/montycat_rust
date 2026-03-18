@@ -496,7 +496,11 @@ dependencies = [
 
 [[package]]
 name = "montycat"
+<<<<<<< Updated upstream
 version = "0.1.5"
+=======
+version = "0.1.7"
+>>>>>>> Stashed changes
 dependencies = [
  "async-trait",
  "indexmap",

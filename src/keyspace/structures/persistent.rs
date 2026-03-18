@@ -3,7 +3,7 @@ use crate::engine::structure::Engine;
 use crate::engine::utils::send_data;
 use crate::errors::MontycatClientError;
 use crate::request::store_request::structure::StoreRequestClient;
-use crate::request::utis::functions::{convert_custom_key, fulfil_subscription_request};
+use crate::request::utis::functions::convert_custom_key;
 use crate::request::{structure::Req, utis::functions::is_custom_type};
 use crate::tools::functions::{process_bulk_values, process_json_value, process_value};
 use crate::tools::structure::Limit;
@@ -96,80 +96,6 @@ impl PersistentKeyspace {
             distributed: false,
             engine: engine.clone(),
         }
-    }
-
-    /// Subscribes to changes in the persistent keyspace.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - Optional key to subscribe to.
-    /// * `custom_key` - Optional custom key to subscribe to.
-    /// * `callback` - Callback function to handle incoming subscription data.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<tokio::sync::watch::Sender<bool>, MontycatClientError>` - A sender to stop the subscription or an error.
-    ///
-    /// # Examples
-    ///
-    /// ```rust, ignore,
-    /// use montycat::engine::utils::StreamCallback;
-    /// use std::sync::Arc;
-    ///
-    /// let callback: StreamCallback = Arc::new(|data: &Vec<u8>| {
-    ///   println!("Received data: {:?}", data);
-    /// });
-    ///
-    /// let stop_tx = keyspace.subscribe(Some("my_key".into()), None, callback).await?;
-    /// // To stop the subscription:
-    /// // stop_tx.send(true)?;
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
-    /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
-    pub async fn subscribe(
-        &self,
-        key: Option<String>,
-        custom_key: Option<String>,
-        callback: crate::engine::utils::StreamCallback,
-    ) -> Result<tokio::sync::watch::Sender<bool>, MontycatClientError> {
-        let (stop_tx, mut stop_rx) = tokio::sync::watch::channel::<bool>(false);
-
-        let engine = self.get_engine();
-        let name = self.get_name();
-        let store = engine
-            .store
-            .as_ref()
-            .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls = engine.use_tls;
-
-        let key = {
-            if key.is_some() && custom_key.is_some() {
-                return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
-            }
-            key.or(custom_key)
-        };
-
-        let port = engine.port + 1;
-        let request_bytes =
-            fulfil_subscription_request(store, name, key, &engine.username, &engine.password)?;
-
-        let host = engine.host.clone();
-        tokio::spawn(async move {
-            let _ = send_data(
-                &host,
-                port,
-                request_bytes.as_slice(),
-                Some(callback),
-                Some(&mut stop_rx),
-                use_tls,
-            )
-            .await;
-        });
-
-        Ok(stop_tx)
     }
 
     /// Creates a new persistent keyspace in the Montycat database.
@@ -579,6 +505,20 @@ impl PersistentKeyspace {
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+<<<<<<< Updated upstream
+=======
+        if volumes.is_none()
+            && latest_volume.unwrap_or(false)
+            && (limit.is_none()
+                || (limit.as_ref().unwrap_or(&Limit::default()).start == 0
+                    && limit.as_ref().unwrap_or(&Limit::default()).stop == 0))
+        {
+            return Err(MontycatClientError::ClientGenericError(
+                "Please provide volumes/latest volume or limit.".into(),
+            ));
+        }
+
+>>>>>>> Stashed changes
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
