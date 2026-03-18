@@ -451,10 +451,6 @@ where
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if with_pointers && with_pointers_metadata {
-            return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
-        }
-
         let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
 
         let has_keys = !processed_keys.is_empty();

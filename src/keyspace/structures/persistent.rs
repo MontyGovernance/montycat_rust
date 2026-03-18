@@ -505,8 +505,6 @@ impl PersistentKeyspace {
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-<<<<<<< Updated upstream
-=======
         if volumes.is_none()
             && latest_volume.unwrap_or(false)
             && (limit.is_none()
@@ -518,7 +516,6 @@ impl PersistentKeyspace {
             ));
         }
 
->>>>>>> Stashed changes
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
