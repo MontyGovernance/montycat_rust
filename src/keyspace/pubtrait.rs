@@ -1222,8 +1222,10 @@ where
     ///
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
     /// * `MontycatClientError::ClientSelectedBothKeyAndCustomKey` - If both key and custom_key are provided.
+    ///
     async fn subscribe(
         &self,
+        subscription_port: Option<u16>,
         key: Option<String>,
         custom_key: Option<String>,
         callback: crate::engine::utils::StreamCallback,
@@ -1247,7 +1249,7 @@ where
             key.or(custom_key)
         };
 
-        let port = engine.port + 1;
+        let port = subscription_port.unwrap_or(engine.port + 1);
         let request_bytes = fulfil_subscription_request(
             store,
             name,

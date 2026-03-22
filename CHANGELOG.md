@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **get_bulk API**: Corrected `StoreRequestClient` initialization where `volumes` and `latest_volume` fields were being ignored.
 - **get_bulk Validation**: Refactored strict validation logic to allow any valid combination of `volumes`, `latest_volume`, and `limit` as a group, while maintaining mutual exclusivity with direct key retrieval.
+- **subscribe API**: Added support for subscription port if specified.
 
 ## [1.0.6]
 ### Changed
@@ -17,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.5]
 ### Improved
 - **Code Robustness**: Enhanced `get_bulk` signature and internal key merging logic to better handle complex query scenarios involving both custom and internal keyspace formats.
-
 
 ## [1.0.4]
 ## Added
