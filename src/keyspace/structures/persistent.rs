@@ -477,9 +477,18 @@ impl PersistentKeyspace {
     ///
     /// # Arguments
     ///
-    /// * `limit` - Optional limit for the number of keys to retrieve. If None, defaults to a standard limit.
-    /// * `volumes` - Optional list of volume names to filter the keys. If None, retrieves from all volumes.
-    /// * `latest_volume` - Optional flag to indicate if only the latest volume should be considered. Defaults to false if None.
+    /// * `limit` - Optional limit for the number of keys to retrieve.
+    ///   - `start` is the offset (0-indexed, inclusive).
+    ///   - `stop` is the inclusive end index. **`stop=0` is a sentinel meaning "return all"**,
+    ///     but only valid when `volumes` or `latest_volume` is also provided.
+    ///   - If `limit` is `None`, defaults to `Limit::default_limit()` (stop=0, start=0).
+    /// * `volumes` - Optional list of volume names to filter the keys.
+    /// * `latest_volume` - Optional flag to only consider the latest volume. Defaults to `false`.
+    ///
+    /// # Behavior
+    ///
+    /// At least one of `volumes`, `latest_volume`, or a nonzero `limit` must be provided.
+    /// Providing none of these returns an error.
     ///
     /// # Returns
     ///
@@ -488,16 +497,20 @@ impl PersistentKeyspace {
     /// # Examples
     ///
     /// ```rust, ignore,
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace
-    ///   .get_keys(Some(Limit::new(0, 10)), None, Some(true)).await;
+    /// // Get up to 10 keys starting from index 0 in the latest volume
+    /// let res = keyspace.get_keys(Some(Limit::new(0, 10)), None, Some(true)).await;
+    ///
+    /// // Get ALL keys from volume "2" (stop=0 sentinel)
+    /// let res = keyspace.get_keys(Some(Limit::new(0, 0)), Some(vec!["2".into()]), None).await;
+    ///
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
     /// ```
     ///
     /// # Errors
     ///
+    /// * `MontycatClientError::ClientGenericError` - If none of volumes/latest_volume/limit are provided.
+    /// * `MontycatClientError::ClientGenericError` - If a nonzero `stop` is less than `start`.
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine.
-    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine.
-    /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
     pub async fn get_keys(
         &self,
@@ -505,12 +518,14 @@ impl PersistentKeyspace {
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if volumes.is_none()
-            && latest_volume.unwrap_or(false)
-            && (limit.is_none()
-                || (limit.as_ref().unwrap_or(&Limit::default()).start == 0
-                    && limit.as_ref().unwrap_or(&Limit::default()).stop == 0))
-        {
+        let has_volumes = volumes.as_ref().is_some_and(|v| !v.is_empty());
+        let has_latest_volume = latest_volume.unwrap_or(false);
+        let has_limit = limit
+            .as_ref()
+            .is_some_and(|lim| lim.start != 0 || lim.stop != 0);
+        let is_volume_scoped = has_volumes || has_latest_volume;
+
+        if !is_volume_scoped && !has_limit {
             return Err(MontycatClientError::ClientGenericError(
                 "Please provide volumes/latest volume or limit.".into(),
             ));
@@ -529,12 +544,12 @@ impl PersistentKeyspace {
 
         let limit_map: HashMap<String, usize> = match limit {
             Some(lim) => {
-                if lim.start > lim.stop {
+                // stop=0 means "return all" when volume-scoped; a nonzero stop must be >= start
+                if lim.stop > 0 && lim.start > lim.stop {
                     return Err(MontycatClientError::ClientGenericError(
                         "Limit start cannot be greater than stop".into(),
                     ));
                 }
-
                 lim.to_map()
             }
             None => Limit::default_limit().to_map(),

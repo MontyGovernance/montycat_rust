@@ -412,9 +412,13 @@ where
     /// * `with_pointers` - Whether to include pointers in the returned values
     /// * `key_included` - Whether to include the keys in the returned values
     /// * `with_pointers_metadata` - Whether to include metadata about pointers in the returned values
-    /// * `limit` - An optional Limit struct to limit the number of returned values
-    /// * `volumes` - An optional vector of volume names to filter the returned values
-    /// * `latest_volume` - An optional boolean to indicate whether to only return values from the latest volume
+    /// * `limit` - An optional `Limit` struct to limit the number of returned values.
+    ///   - `start` is the offset (0-indexed, inclusive).
+    ///   - `stop` is the inclusive end index. **`stop=0` is a sentinel meaning "return all"**,
+    ///     valid only when `volumes` or `latest_volume` is also provided.
+    ///   - A nonzero `stop` must be >= `start`.
+    /// * `volumes` - An optional vector of volume names to filter the returned values.
+    /// * `latest_volume` - An optional boolean to indicate whether to only return values from the latest volume.
     ///
     /// # Behavior
     ///
@@ -481,7 +485,8 @@ where
 
         let limit_map: HashMap<String, usize> = match &limit {
             Some(lim) => {
-                if lim.start > lim.stop {
+                // stop=0 means "return all" when volume-scoped; a nonzero stop must be >= start
+                if lim.stop > 0 && lim.start > lim.stop {
                     return Err(MontycatClientError::ClientGenericError(
                         "Limit start cannot be greater than stop".into(),
                     ));
