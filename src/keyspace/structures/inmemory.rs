@@ -425,7 +425,10 @@ impl InMemoryKeyspace {
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if volumes.is_none() && latest_volume.unwrap_or(false) {
+        let has_volumes = volumes.as_ref().is_some_and(|v| !v.is_empty());
+        let has_latest_volume = latest_volume.unwrap_or(false);
+
+        if !has_volumes && !has_latest_volume {
             return Err(MontycatClientError::ClientGenericError(
                 "Please provide volumes/latest volume.".into(),
             ));

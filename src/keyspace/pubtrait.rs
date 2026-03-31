@@ -39,7 +39,6 @@ use std::collections::HashMap;
 /// - `MontycatClientError::ClientValueParsingError`: If there is an error parsing the response.
 /// - `MontycatClientError::ClientSelectedBothKeyAndCustomKey`: If both key and custom_key are provided.
 /// - `MontycatClientError::ClientNoValidInputProvided`: If neither key nor custom_key are provided.
-/// - `MontycatClientError::ClientSelectedBothPointersValueAndMetadata`: If both with_pointers and pointers_metadata are true.
 #[async_trait]
 pub trait Keyspace
 where
@@ -168,10 +167,6 @@ where
         }
 
         let mut key: String = key.unwrap_or("").to_owned();
-
-        if with_pointers_metadata && with_pointers {
-            return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
-        }
 
         if let Some(custom_key_unwrapped) = custom_key {
             key = convert_custom_key(custom_key_unwrapped);
