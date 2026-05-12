@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 /// - `ClientValueParsingError(String)` : Represents errors that occur during value parsing.
 /// - `ClientGenericError(String)` : Represents generic client errors.
 /// - `ClientSelectedBothKeyAndCustomKey` : Error when both key and custom key
-/// - `ClientSelectedBothPointersValueAndMetadata` : Error when both pointers value and metadata are selected.
 /// - `ClientStoreNotSet` : Error when the store is not set in the engine
 /// - `ClientNoValidInputProvided` : Error when no valid input is provided.
 /// - `ClientAsyncRuntimeError(String)` : Represents errors related to the async runtime.
@@ -20,7 +19,6 @@ pub enum MontycatClientError {
     ClientValueParsingError(String),
     ClientGenericError(String),
     ClientSelectedBothKeyAndCustomKey,
-    ClientSelectedBothPointersValueAndMetadata,
     ClientStoreNotSet,
     ClientNoValidInputProvided,
     ClientAsyncRuntimeError(String),
@@ -42,9 +40,6 @@ impl MontycatClientError {
             MontycatClientError::ClientStoreNotSet => "Store is not set in the engine".to_owned(),
             MontycatClientError::ClientSelectedBothKeyAndCustomKey => {
                 "You selected both key and custom key. Choose one".to_owned()
-            }
-            MontycatClientError::ClientSelectedBothPointersValueAndMetadata => {
-                "You selected both pointers value and pointers metadata. Choose one".to_owned()
             }
             MontycatClientError::ClientNoValidInputProvided => "No valid input provided".to_owned(),
             MontycatClientError::ClientAsyncRuntimeError(msg) => msg.to_owned(),
@@ -92,15 +87,6 @@ mod tests {
         assert_eq!(
             error.message(),
             "You selected both key and custom key. Choose one"
-        );
-    }
-
-    #[test]
-    fn test_client_selected_both_pointers_value_and_metadata_message() {
-        let error = MontycatClientError::ClientSelectedBothPointersValueAndMetadata;
-        assert_eq!(
-            error.message(),
-            "You selected both pointers value and pointers metadata. Choose one"
         );
     }
 

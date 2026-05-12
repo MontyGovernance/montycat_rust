@@ -39,7 +39,6 @@ use std::collections::HashMap;
 /// - `MontycatClientError::ClientValueParsingError`: If there is an error parsing the response.
 /// - `MontycatClientError::ClientSelectedBothKeyAndCustomKey`: If both key and custom_key are provided.
 /// - `MontycatClientError::ClientNoValidInputProvided`: If neither key nor custom_key are provided.
-/// - `MontycatClientError::ClientSelectedBothPointersValueAndMetadata`: If both with_pointers and pointers_metadata are true.
 #[async_trait]
 pub trait Keyspace
 where
@@ -168,10 +167,6 @@ where
         }
 
         let mut key: String = key.unwrap_or("").to_owned();
-
-        if with_pointers_metadata && with_pointers {
-            return Err(MontycatClientError::ClientSelectedBothPointersValueAndMetadata);
-        }
 
         if let Some(custom_key_unwrapped) = custom_key {
             key = convert_custom_key(custom_key_unwrapped);
@@ -455,7 +450,11 @@ where
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
+        let processed_keys: Vec<String> = if bulk_keys.is_some() || bulk_custom_keys.is_some() {
+            merge_keys(bulk_keys, bulk_custom_keys).await?
+        } else {
+            Vec::new()
+        };
 
         let has_keys = !processed_keys.is_empty();
         let has_volumes = volumes.as_ref().is_some_and(|v| !v.is_empty());
