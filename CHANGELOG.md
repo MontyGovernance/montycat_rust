@@ -5,21 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.7]
+## [0.1.7]
 ### Fixed
 - **get_bulk API**: Corrected `StoreRequestClient` initialization where `volumes` and `latest_volume` fields were being ignored.
 - **get_bulk Validation**: Refactored strict validation logic to allow any valid combination of `volumes`, `latest_volume`, and `limit` as a group, while maintaining mutual exclusivity with direct key retrieval.
 - **subscribe API**: Added support for subscription port if specified.
+### Fixed
+- **get_bulk API**: Prevented a panic when both `bulk_keys` and `bulk_custom_keys` are `None` — `merge_keys` is now skipped and an empty key list is returned instead.
+- **Key/Custom Key Validation**: Corrected inverted validation logic in the `Keyspace` trait — `ClientSelectedBothKeyAndCustomKey` now correctly triggers when *both* `key` and `custom_key` are provided, not when neither is.
 
-## [1.0.6]
+### Changed
+- **get_bulk Validation (InMemoryKeyspace)**: Volume-scope guard now requires that at least one of `volumes` (non-empty) or `latest_volume=true` is set, rather than only erroring when `latest_volume` is false without volumes.
+- **`ClientSelectedBothPointersValueAndMetadata` error removed**: The restriction preventing simultaneous use of `with_pointers` and `with_pointers_metadata` has been lifted. Both can now be requested together.
+
+### Added
+- **`get_keys` — `limit.stop=0` sentinel**: `stop=0` now means "return all records" when the query is volume-scoped (`volumes` or `latest_volume` provided). A nonzero `stop` must still be ≥ `start`.
+- **`get_keys` query parameter enforcement**: At least one of `volumes`, `latest_volume`, or a nonzero `limit` must be provided; omitting all three now returns a `ClientGenericError`.
+
+## [0.1.6]
 ### Changed
 - **get_bulk Parameter Handling**: Improved `limit_map` generation to use inclusive reference borrowing and more robust error checking for start/stop bounds.
 
-## [1.0.5]
+## [0.0.5]
 ### Improved
 - **Code Robustness**: Enhanced `get_bulk` signature and internal key merging logic to better handle complex query scenarios involving both custom and internal keyspace formats.
 
-## [1.0.4]
+## [0.1.4]
 ## Added
 - Volume-Based Bulk Retrieval
 - Volume Filtering in get_bulk()
@@ -51,7 +62,7 @@ latest_volume: `Option<bool>`
 - Combined filtering edge cases
 - All existing tests pass successfully.
 
-## [1.0.3]
+## [0.1.3]
 
 ### Added
 
