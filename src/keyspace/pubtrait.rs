@@ -450,7 +450,11 @@ where
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        let processed_keys: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
+        let processed_keys: Vec<String> = if bulk_keys.is_some() || bulk_custom_keys.is_some() {
+            merge_keys(bulk_keys, bulk_custom_keys).await?
+        } else {
+            Vec::new()
+        };
 
         let has_keys = !processed_keys.is_empty();
         let has_volumes = volumes.as_ref().is_some_and(|v| !v.is_empty());
