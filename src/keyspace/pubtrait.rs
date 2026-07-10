@@ -254,6 +254,7 @@ where
         &self,
         key: Option<&str>,
         custom_key: Option<&str>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         if key.is_some() && custom_key.is_some() {
             return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
@@ -289,6 +290,7 @@ where
             command,
             username: engine.username.clone(),
             password: engine.password.clone(),
+            wait_for_index,
             ..Default::default()
         };
 
@@ -566,6 +568,7 @@ where
         &self,
         bulk_keys: Option<Vec<String>>,
         bulk_custom_keys: Option<Vec<String>>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let keys_processed: Vec<String> = merge_keys(bulk_keys, bulk_custom_keys).await?;
 
@@ -589,6 +592,7 @@ where
             command,
             username: engine.username.clone(),
             password: engine.password.clone(),
+            wait_for_index,
             ..Default::default()
         };
 
@@ -916,6 +920,7 @@ where
         &self,
         bulk_keys_values: Vec<HashMap<String, T>>,
         bulk_custom_keys_values: Vec<HashMap<String, T>>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
@@ -947,6 +952,7 @@ where
             persistent,
             distributed,
             command,
+            wait_for_index,
             ..Default::default()
         };
 
@@ -1188,6 +1194,173 @@ where
         .await?;
 
         Ok(response)
+    }
+
+    /// Shared core for `semantic_search_get_keys` / `semantic_search_get_values`.
+    /// The server command is the same either way (`semantic_search`); the two
+    /// public methods differ only in which value-inclusion flags they pass, so
+    /// the wire call lives here once. `search_criteria` carries the raw query
+    /// text (the engine trims it as a plain string) — not a JSON filter map.
+    #[doc(hidden)]
+    async fn semantic_search_core(
+        &self,
+        query: &str,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+        with_pointers: bool,
+        key_included: bool,
+        pointers_metadata: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        if query.trim().is_empty() {
+            return Err(MontycatClientError::ClientNoValidInputProvided);
+        }
+
+        let engine: Engine = self.get_engine();
+        let name: &str = self.get_name();
+        let persistent: bool = self.get_persistent();
+        let distributed: bool = self.get_distributed();
+        let store: String = engine
+            .store
+            .clone()
+            .ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let use_tls: bool = engine.use_tls;
+        let command: String = "semantic_search".to_string();
+
+        let limit_map: HashMap<String, usize> = match limit {
+            Some(lim) => {
+                if lim.start > lim.stop {
+                    return Err(MontycatClientError::ClientGenericError(
+                        "Limit start cannot be greater than stop".into(),
+                    ));
+                }
+
+                lim.to_map()
+            }
+            None => Limit::default_limit().to_map(),
+        };
+
+        let new_store_request: StoreRequestClient = StoreRequestClient {
+            with_pointers,
+            key_included,
+            pointers_metadata,
+            min_score,
+            limit_output: limit_map,
+            search_criteria: query.to_owned(),
+            username: engine.username.clone(),
+            password: engine.password.clone(),
+            keyspace: name.to_owned(),
+            store,
+            persistent,
+            distributed,
+            command,
+            ..Default::default()
+        };
+
+        let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
+        let response: Option<Vec<u8>> = send_data(
+            &engine.host,
+            engine.port,
+            bytes.as_slice(),
+            None,
+            None,
+            use_tls,
+        )
+        .await?;
+
+        Ok(response)
+    }
+
+    /// Semantic (vector similarity) search returning ranked keys only.
+    ///
+    /// Ranks stored items by how close their embeddings are to the embedding of
+    /// `query` and returns just the matched key and score for each hit — the
+    /// lightweight variant when you only need identity + ranking (e.g. to then
+    /// `get_bulk` a page, or to test membership). Use `semantic_search_get_values`
+    /// when you want the values inline.
+    ///
+    /// Semantic search must be enabled first (see `Engine::enable_semantic_search`).
+    /// The keyspace is embedded in the background as items are written, so results
+    /// reflect whatever has been embedded so far.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The natural-language query text to embed and search for
+    /// * `limit` - An optional Limit over the ranked hits; None lets the server
+    ///   apply its default top-k (10)
+    /// * `min_score` - Drop hits whose cosine similarity (in [-1, 1]) is below
+    ///   this value; None applies no score filter
+    ///
+    /// # Examples
+    ///
+    /// ```rust, ignore
+    /// let res = keyspace.semantic_search_get_keys("astronomy and outer space", Some(Limit { start: 0, stop: 3 }), None).await;
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    /// // each hit: {"key": ..., "score": ...}
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
+    ///
+    async fn semantic_search_get_keys(
+        &self,
+        query: &str,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.semantic_search_core(query, limit, min_score, false, false, false)
+            .await
+    }
+
+    /// Semantic (vector similarity) search returning ranked hits with their values.
+    ///
+    /// Ranks stored items by how close their embeddings are to the embedding of
+    /// `query` and returns the value inline with each hit — the key is always
+    /// included so every value is tagged with its key. Use
+    /// `semantic_search_get_keys` when you only need keys + scores.
+    ///
+    /// Semantic search must be enabled first (see `Engine::enable_semantic_search`).
+    /// The keyspace is embedded in the background as items are written, so results
+    /// reflect whatever has been embedded so far.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The natural-language query text to embed and search for
+    /// * `limit` - An optional Limit over the ranked hits; None lets the server
+    ///   apply its default top-k (10)
+    /// * `min_score` - Drop hits whose cosine similarity (in [-1, 1]) is below
+    ///   this value; None applies no score filter
+    /// * `with_pointers` - Whether to include pointers (foreign values) in each
+    ///   returned value
+    /// * `pointers_metadata` - Whether to include pointer metadata in each
+    ///   returned value
+    ///
+    /// # Examples
+    ///
+    /// ```rust, ignore
+    /// let res = keyspace.semantic_search_get_values("recipes for dinner", None, Some(0.3), false, false).await;
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    /// // each hit: {"key": ..., "score": ..., "value": ...}
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
+    ///
+    async fn semantic_search_get_values(
+        &self,
+        query: &str,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+        with_pointers: bool,
+        pointers_metadata: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.semantic_search_core(query, limit, min_score, with_pointers, true, pointers_metadata)
+            .await
     }
 
     /// Subscribes to changes in the persistent keyspace.

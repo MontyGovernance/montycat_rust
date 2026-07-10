@@ -262,6 +262,7 @@ impl PersistentKeyspace {
         &self,
         custom_key: Option<String>,
         value: T,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + RuntimeSchema + Send + 'static,
@@ -306,6 +307,7 @@ impl PersistentKeyspace {
             value: value_to_send,
             command,
             key,
+            wait_for_index,
             ..Default::default()
         };
 
@@ -348,6 +350,7 @@ impl PersistentKeyspace {
     pub async fn insert_custom_key(
         &self,
         custom_key: String,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
@@ -373,6 +376,7 @@ impl PersistentKeyspace {
             value: String::new(),
             command,
             key: Some(key),
+            wait_for_index,
             ..Default::default()
         };
 
@@ -614,6 +618,7 @@ impl PersistentKeyspace {
         key: Option<String>,
         custom_key: Option<String>,
         value: T,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
@@ -648,6 +653,7 @@ impl PersistentKeyspace {
             distributed,
             value: value_to_send,
             command,
+            wait_for_index,
             ..Default::default()
         };
 
@@ -692,6 +698,7 @@ impl PersistentKeyspace {
     pub async fn insert_bulk<T>(
         &self,
         bulk_values: Vec<T>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + RuntimeSchema + Send + 'static + Clone,
@@ -705,9 +712,9 @@ impl PersistentKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "insert_value".to_string();
+        let command: String = "insert_bulk".to_string();
 
-        let (value_to_send, schema) = process_bulk_values(bulk_values).await?;
+        let (serialized_values, schema) = process_bulk_values(bulk_values).await?;
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             schema,
@@ -717,8 +724,9 @@ impl PersistentKeyspace {
             store,
             persistent,
             distributed,
-            value: value_to_send,
+            bulk_values: serialized_values,
             command,
+            wait_for_index,
             ..Default::default()
         };
 
@@ -763,6 +771,7 @@ impl PersistentKeyspace {
     pub async fn insert_bulk_no_schema<T>(
         &self,
         bulk_values: Vec<T>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
@@ -776,9 +785,14 @@ impl PersistentKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "insert_value".to_string();
+        let command: String = "insert_bulk".to_string();
 
-        let value_to_send: String = process_json_value(&bulk_values)?;
+        // One JSON string per value — the server's insert_bulk creates one
+        // record per bulk_values element (see process_bulk_values).
+        let serialized_values: Vec<String> = bulk_values
+            .iter()
+            .map(process_json_value)
+            .collect::<Result<Vec<String>, MontycatClientError>>()?;
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             username: engine.username.clone(),
@@ -787,8 +801,9 @@ impl PersistentKeyspace {
             store,
             persistent,
             distributed,
-            value: value_to_send,
+            bulk_values: serialized_values,
             command,
+            wait_for_index,
             ..Default::default()
         };
 

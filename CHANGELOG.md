@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-10
+
+Semantic search, per-request/DB-wide index-wait control, and a batch of operator
+commands — plus a correctness fix to `insert_bulk`. Contains breaking changes to
+every write/delete method signature (see below), hence the minor bump.
+
+### ⚠️ Breaking
+- **`wait_for_index` parameter on all write/delete methods**: every insert/update/delete
+  now takes a trailing `wait_for_index: Option<bool>` — `insert_value`, `insert_custom_key`,
+  `insert_bulk`, `insert_bulk_no_schema`, `update_value` (on `InMemoryKeyspace` and
+  `PersistentKeyspace`), and `delete_key`, `delete_bulk`, `update_bulk` (on the `Keyspace`
+  trait). `Some(true)` makes a persistent write return only after its index is updated
+  (read-your-writes); `Some(false)` is fire-and-forget; `None` uses the DB-wide default.
+  Existing calls must add a trailing `None`.
+
+### Fixed
+- **`insert_bulk` / `insert_bulk_no_schema` created a single record instead of many**:
+  the whole `Vec` was serialized into one `value` under `command = "insert_value"`, so a
+  bulk insert stored one record whose value was the array. They now send
+  `command = "insert_bulk"` with per-element `bulk_values`, creating one record per element
+  (matching the server and the other SDKs). `process_bulk_values` now returns
+  `Vec<String>` (one JSON string per value) rather than one concatenated string.
+
+### Added
+- **Semantic (vector) search** on the `Keyspace` trait:
+  - `semantic_search_get_keys(query, limit, min_score)` → ranked `{key, score}` hits.
+  - `semantic_search_get_values(query, limit, min_score, with_pointers, pointers_metadata)`
+    → ranked hits with values inline (key always included). Empty query → `ClientNoValidInputProvided`.
+- **Semantic search control on `Engine`**:
+  - `enable_semantic_search(model, field, store)` / `disable_semantic_search(drop_vectors, store)`
+    — DB-wide, or scoped to a single store when `store` is `Some`.
+- **`wait_for_index` DB-wide default on `Engine`**: `enable_wait_for_index()` / `disable_wait_for_index()` (superowner).
+- **Operator/admin commands on `Engine`** (superowner): `enable_reports()` / `disable_reports()`,
+  `allow_subscriptions()` / `restrict_subscriptions()`, `queue_depths()` (returns per-queue
+  depth maps), `set_snapshot_rate(rate)`, `set_expiration_check_rate(rate)` (value ×900s server-side).
+- **`StoreRequestClient` fields** `min_score: Option<f32>` and `wait_for_index: Option<bool>`,
+  both `#[serde(skip_serializing_if = "Option::is_none")]` so the wire is unchanged for callers
+  that don't set them.
+
+### Changed
+- **`#[derive(RuntimeSchema)]` ergonomics** (via `montycat_serialization_derive` 0.1.7): the
+  derive now emits fully-qualified paths (`::montycat::…`, `::std::collections::HashMap`), so you
+  no longer need `use montycat::{Pointer, Timestamp};` or `use std::collections::HashMap;` next to
+  the derive — just `use montycat::RuntimeSchema;`. (Structs with `Pointer`/`Timestamp` *fields*
+  still import those to name the field types.)
+
 ## [0.1.7]
 ### Fixed
 - **get_bulk API**: Corrected `StoreRequestClient` initialization where `volumes` and `latest_volume` fields were being ignored.

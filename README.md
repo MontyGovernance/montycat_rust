@@ -1,4 +1,4 @@
-# 🚀 Rust Client for Montycat - High-Performance NoSQL Database. The Fastest, Safest, and Most Elegant Database Client Ever Built in Rust.
+# 🚀 Rust Client for Montycat — the self-hosted NoSQL + vector database with built-in AI semantic search for RAG & AI agents. The Fastest, Safest, and Most Elegant Database Client Ever Built in Rust.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/montycat.svg)](https://crates.io/crates/montycat)
@@ -7,7 +7,7 @@
 
 ## 🦀 What Is Montycat?
 
-Montycat isn’t just another database — it’s the future of data systems. Built entirely in Rust, Montycat redefines what performance, safety, and developer ergonomics mean in the NoSQL world. It fuses the best ideas from distributed data meshes, real-time streaming, and memory-safe system design — giving developers the only database engine that feels truly native to Rust. Montycat eliminates everything ugly about existing databases — no bloated SQL syntax, no fragile ORMs, no half-baked drivers. Just pure async power, memory safety, and a clean, structured API that works exactly the way a Rust developer expects.
+Montycat is a **self-hosted NoSQL + vector database** — one Rust-powered engine with semantic search built in, so you get **RAG, AI-agent memory, and vector search** without running a separate vector DB (and paying its per-query bill). No cloud lock-in, no ops headache. Built entirely in Rust, Montycat redefines what performance, safety, and developer ergonomics mean in the NoSQL world. It fuses the best ideas from distributed data meshes, real-time streaming, and memory-safe system design — giving developers the only database engine that feels truly native to Rust. Montycat eliminates everything ugly about existing databases — no bloated SQL syntax, no fragile ORMs, no half-baked drivers. Just pure async power, memory safety, and a clean, structured API that works exactly the way a Rust developer expects.
 
 ## 🦾 Built Different — The Montycat Philosophy
 
@@ -98,10 +98,11 @@ async fn main() {
         name: "Monty".to_string(),
     };
 
-    let insert_res_in_mem = in_mem.insert_value(employee, None).await;
+    // insert_value(custom_key, value, [expire (in-memory only),] wait_for_index)
+    let insert_res_in_mem = in_mem.insert_value(None, employee.clone(), None, None).await;
     println!("Insert response: {:?}", insert_res_in_mem);
 
-    let insert_res_pers = persistent.insert_value(employee, None).await;
+    let insert_res_pers = persistent.insert_value(None, employee, None).await;
     println!("Insert response: {:?}", insert_res_pers);
 
     let search_criteria = serde_json::json!({
@@ -109,7 +110,7 @@ async fn main() {
     });
 
     // Lookup values where name is Monty
-    let lookup_res_in_mem = in_mem.lookup_values_where(search_criteria, None, false, true, false, None).await;
+    let lookup_res_in_mem = in_mem.lookup_values_where(search_criteria.clone(), None, false, true, false, None).await;
     // Parse into desired type
     let parsed = MontycatResponse::<Option<Employee>>::parse_response(lookup_res_in_mem);
     println!("Lookup response: {:?}", parsed);
@@ -127,6 +128,57 @@ async fn main() {
     println!("Lookup response: {:?}", parsed);
 
 }
+```
+
+## 🧠 AI-Native Semantic Search — Vector Search Built Into Your Database
+
+**Stop bolting a separate vector database onto your stack.** Montycat ranks your data by
+*meaning*, not keywords — an embedded, on-device vector-embedding engine turns every write
+into a searchable vector automatically. It's the retrieval layer for **RAG pipelines, AI
+agents, semantic search, recommendation engines, and LLM-powered apps** — with **zero
+external APIs, zero API keys, and zero extra infrastructure.**
+
+- 🔎 **Semantic / vector search** — kNN similarity over on-device embeddings, not brittle keyword matches.
+- 🤖 **Built for AI** — RAG, semantic retrieval, AI agents, recommendations, dedup, clustering.
+- 🔒 **Private & free** — embeddings never leave your machine. No OpenAI/Cohere bill, no data egress.
+- ⚡ **One system, not two** — your data *and* its vectors live in the same database. No sync jobs, no drift, no second service to run.
+- 🚀 **Zero setup** — no index tuning, no pipeline: `enable_semantic_search()` and you're ranking by meaning.
+
+> **⚠️ Requires the semantic edition of the server — nothing to compile.** Semantic
+> search runs an embedded ONNX vector-embedding engine that ships only in the
+> **`montycat-semantic`** edition; the default lean `montycat` server does not include it.
+> Get it the way that suits you — pull the `montycat-semantic` **Docker image**, download
+> the prebuilt **package**, or install from the **apt repository**. The Rust client API
+> is identical either way; just point it at a `montycat-semantic` server (semantic search
+> is enabled by default there, using the `bge-small` model).
+
+Beyond exact-match `lookup_keys_where` / `lookup_values_where`, Montycat ranks stored
+items by *meaning* using on-device vector embeddings — no external API, no extra service,
+no separate vector database.
+
+```rust
+use montycat::{Keyspace, Limit, MontycatResponse};
+
+// (reuses the `engine` and `persistent` keyspace from the Quick Start above)
+
+// Turn semantic search on for the whole database (model downloaded on first use).
+// model: "minilm" | "bge-small" (default) | "bge-base" | "e5-small"
+engine.enable_semantic_search(None, None, None).await;
+
+// Rank stored items by meaning — two flavors:
+//   get_values -> each hit is { key, score, value }
+//   get_keys   -> each hit is { key, score } (lighter; fetch a page later with get_bulk)
+let values = persistent
+    .semantic_search_get_values("wireless headphones", Some(Limit { start: 0, stop: 5 }), None, false, false)
+    .await;
+
+// Keys only, with a cosine-similarity floor (range [-1, 1]):
+let _keys = persistent
+    .semantic_search_get_keys("wireless headphones", Some(Limit { start: 0, stop: 5 }), Some(0.35))
+    .await;
+
+let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(values);
+println!("{:?}", parsed);
 ```
 
 ## Want more?

@@ -315,6 +315,300 @@ impl Engine {
         Ok(response)
     }
 
+    /// Enables semantic (vector similarity) search.
+    ///
+    /// Without `store`, this is DB-wide: it flips the whole database on, sets the
+    /// default embedding model and field, and enrolls every existing keyspace that
+    /// has no semantic config yet (each gets a background backfill so its existing
+    /// items become searchable). The chosen model is downloaded on demand on first
+    /// enable, so this call may take a while the first time.
+    ///
+    /// With `store`, it is scoped: only that store's un-enrolled keyspaces are
+    /// enrolled and backfilled; the DB-wide switch and default model/field are left
+    /// untouched. Use this to (re-)enable one store without re-embedding the entire
+    /// database.
+    ///
+    /// # Arguments
+    /// * `model` - The embedding model key to use by default. One of 'minilm',
+    ///   'bge-small', 'bge-base', 'e5-small'. None uses the server default
+    ///   ('bge-small').
+    /// * `field` - The JSON field of each value to embed. None embeds the whole value.
+    /// * `store` - Restrict enrollment/backfill to this store only. If the DB-wide
+    ///   switch is off, a scoped enable enrolls but nothing embeds until a DB-wide
+    ///   enable.
+    ///
+    /// # Examples
+    /// ```rust, ignore
+    /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
+    /// let response = engine.enable_semantic_search(Some("bge-small"), None, None).await;
+    /// ```
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    ///
+    pub async fn enable_semantic_search(
+        &self,
+        model: Option<&str>,
+        field: Option<&str>,
+        store: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command: Vec<String> = vec!["enable-semantic-search".into()];
+        if let Some(model) = model {
+            command.push("model".into());
+            command.push(model.into());
+        }
+        if let Some(field) = field {
+            command.push("field".into());
+            command.push(field.into());
+        }
+        if let Some(store) = store {
+            command.push("store".into());
+            command.push(store.into());
+        }
+
+        let request: Req = Req::new_raw_command(
+            command,
+            vec![self.username.clone(), self.password.clone()],
+        );
+
+        let response: Option<Vec<u8>> = send_data(
+            &self.host,
+            self.port,
+            request.byte_down()?.as_slice(),
+            None,
+            None,
+            self.use_tls,
+        )
+        .await?;
+
+        Ok(response)
+    }
+
+    /// Disables semantic search.
+    ///
+    /// Without `store`, this is DB-wide: embedding and semantic queries stop across
+    /// the whole database; stored vectors are kept by default so re-enabling
+    /// resumes without a full re-embed.
+    ///
+    /// With `store`, it is scoped: only that store's keyspaces are unenrolled
+    /// (their configs and resident graphs dropped); the DB-wide switch and all
+    /// other stores are left untouched. This is the surgical way to reset one
+    /// store's semantic state instead of nuking and re-backfilling the whole
+    /// database.
+    ///
+    /// # Arguments
+    /// * `drop_vectors` - If true, also clear stored vectors — every keyspace's
+    ///   DB-wide, or the scoped store's when `store` is set. Required before
+    ///   switching to a different embedding model.
+    /// * `store` - Restrict the disable to this store only. None disables DB-wide.
+    ///
+    /// # Examples
+    /// ```rust, ignore
+    /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
+    /// let response = engine.disable_semantic_search(false, None).await;
+    /// ```
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    ///
+    pub async fn disable_semantic_search(
+        &self,
+        drop_vectors: bool,
+        store: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command: Vec<String> = vec!["disable-semantic-search".into()];
+        if drop_vectors {
+            command.push("drop-vectors".into());
+        }
+        if let Some(store) = store {
+            command.push("store".into());
+            command.push(store.into());
+        }
+
+        let request: Req = Req::new_raw_command(
+            command,
+            vec![self.username.clone(), self.password.clone()],
+        );
+
+        let response: Option<Vec<u8>> = send_data(
+            &self.host,
+            self.port,
+            request.byte_down()?.as_slice(),
+            None,
+            None,
+            self.use_tls,
+        )
+        .await?;
+
+        Ok(response)
+    }
+
+    /// Enables the DB-wide "wait for index" default.
+    ///
+    /// Writes block until their secondary indexes are updated before returning,
+    /// so a write is immediately visible to index-backed reads (e.g.
+    /// `lookup_values_where`) at the cost of higher write latency. Requires
+    /// superowner credentials.
+    ///
+    /// # Examples
+    /// ```rust, ignore
+    /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
+    /// let response = engine.enable_wait_for_index().await;
+    /// ```
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    ///
+    pub async fn enable_wait_for_index(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let request: Req = Req::new_raw_command(
+            vec!["enable-wait-for-index".into()],
+            vec![self.username.clone(), self.password.clone()],
+        );
+
+        let response: Option<Vec<u8>> = send_data(
+            &self.host,
+            self.port,
+            request.byte_down()?.as_slice(),
+            None,
+            None,
+            self.use_tls,
+        )
+        .await?;
+
+        Ok(response)
+    }
+
+    /// Disables the DB-wide "wait for index" default.
+    ///
+    /// Writes return as soon as the data is committed and indexing happens
+    /// asynchronously in the background (lower write latency; index-backed
+    /// reads may briefly lag). This is the default behavior. Requires
+    /// superowner credentials.
+    ///
+    /// # Examples
+    /// ```rust, ignore
+    /// let engine = Engine::from_uri("montycat://admin:adminpass@localhost:21210/mystore").unwrap();
+    /// let response = engine.disable_wait_for_index().await;
+    /// ```
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    ///
+    pub async fn disable_wait_for_index(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let request: Req = Req::new_raw_command(
+            vec!["disable-wait-for-index".into()],
+            vec![self.username.clone(), self.password.clone()],
+        );
+
+        let response: Option<Vec<u8>> = send_data(
+            &self.host,
+            self.port,
+            request.byte_down()?.as_slice(),
+            None,
+            None,
+            self.use_tls,
+        )
+        .await?;
+
+        Ok(response)
+    }
+
+    /// Internal helper: send `command` (the full raw token list) authenticated
+    /// with the engine's credentials.
+    async fn admin_command(
+        &self,
+        command: Vec<String>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let request: Req =
+            Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
+
+        let response: Option<Vec<u8>> = send_data(
+            &self.host,
+            self.port,
+            request.byte_down()?.as_slice(),
+            None,
+            None,
+            self.use_tls,
+        )
+        .await?;
+
+        Ok(response)
+    }
+
+    /// Enables server-side operation reporting (logging). Requires superowner credentials.
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn enable_reports(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["enable-reports".into()]).await
+    }
+
+    /// Disables server-side operation reporting (logging). Requires superowner credentials.
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn disable_reports(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["disable-reports".into()]).await
+    }
+
+    /// Allows clients to open keyspace subscriptions DB-wide. Requires superowner credentials.
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn allow_subscriptions(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["allow-subscriptions".into()]).await
+    }
+
+    /// Restricts (disallows) keyspace subscriptions DB-wide. Requires superowner credentials.
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn restrict_subscriptions(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["restrict-subscriptions".into()])
+            .await
+    }
+
+    /// Samples the current depth of every background task queue (index, timer,
+    /// counting) — an observability probe for whether the background runners are
+    /// keeping up with the write rate. Requires superowner credentials.
+    ///
+    /// The response payload maps `"index" | "timer" | "counting"` to per-queue
+    /// depth maps.
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn queue_depths(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["queue-depths".into()]).await
+    }
+
+    /// Sets the server-wide snapshot rate. Requires superowner credentials.
+    ///
+    /// # Arguments
+    /// * `rate` - The snapshot rate value (server-defined units).
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn set_snapshot_rate(&self, rate: u64) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["snapshot-rate".into(), rate.to_string()])
+            .await
+    }
+
+    /// Sets how often the server scans for expired keys. Requires superowner credentials.
+    ///
+    /// # Arguments
+    /// * `rate` - Number of 15-minute intervals between expiration scans; multiplied
+    ///   by 900 seconds server-side (e.g. `rate = 4` → a scan every 60 minutes).
+    ///
+    /// # Errors
+    /// Returns MontycatClientError if there is a communication error.
+    pub async fn set_expiration_check_rate(
+        &self,
+        rate: u64,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec!["expiration-check".into(), rate.to_string()])
+            .await
+    }
+
     /// Lists all owners in the Montycat database.
     ///
     /// # Examples
