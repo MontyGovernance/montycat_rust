@@ -4,12 +4,13 @@ version = "0.2.0"
 edition = "2024"
 
 authors = ["MontyGovernance"]
-description = "Rust client for Montycat - the self-hosted NoSQL + vector database with built-in AI semantic search for RAG & AI agents. The fastest, safest, and most elegant database client ever built in Rust."
+description = "Self-hosted vector database + NoSQL with built-in AI semantic search — the async Rust client for Montycat. A self-hosted Pinecone / Weaviate / Chroma alternative for RAG, AI agents & LLM memory."
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 documentation = "https://docs.rs/montycat"
 homepage = "https://montygovernance.com"
+repository = "https://github.com/MontyGovernance/montycat_rust"
 
 keywords = ["vector-database", "semantic-search", "rag", "embeddings", "nosql"]
 categories = ["database", "asynchronous", "network-programming", "api-bindings"]
