@@ -15,9 +15,9 @@ The official async Rust client for [Montycat](https://montygovernance.com) — a
 // Search your data by MEANING — no external APIs, no separate vector database.
 // (already ON by default in the montycat-semantic server edition)
 let hits = keyspace
-    .semantic_search_get_values("wireless headphones", None, None, false, false)
+    .semantic_search_get_values("something to listen to music without wires", None, None, false, false)
     .await;
-// → ranked by semantic similarity: [{ key, score, value }, ...]
+// → [{ key, score, value: { "name": "Wireless Headphones" } }, ...]  (matched by meaning, not keywords)
 ```
 
 > ### 🧩 All-in-one. AI-native. **Zero external dependencies.**
@@ -210,12 +210,12 @@ use montycat::{Keyspace, Limit, MontycatResponse};
 //   get_values -> each hit is { key, score, value }
 //   get_keys   -> each hit is { key, score } (lighter; fetch a page later with get_bulk)
 let values = persistent
-    .semantic_search_get_values("wireless headphones", Some(Limit { start: 0, stop: 5 }), None, false, false)
+    .semantic_search_get_values("something to listen to music without wires", Some(Limit { start: 0, stop: 5 }), None, false, false)
     .await;
 
 // Keys only, with a cosine-similarity floor (range [-1, 1]):
 let _keys = persistent
-    .semantic_search_get_keys("wireless headphones", Some(Limit { start: 0, stop: 5 }), Some(0.35))
+    .semantic_search_get_keys("something to listen to music without wires", Some(Limit { start: 0, stop: 5 }), Some(0.35))
     .await;
 
 let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(values);
