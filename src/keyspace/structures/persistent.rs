@@ -627,9 +627,14 @@ impl PersistentKeyspace {
             return Err(MontycatClientError::ClientNoValidInputProvided);
         }
 
-        let key: String = key
-            .or(custom_key)
-            .ok_or(MontycatClientError::ClientNoValidInputProvided)?;
+        // A custom key must be hashed to its numeric key like every other op;
+        // sending it raw makes the server fail to parse it as a key.
+        let key: String = match key {
+            Some(k) => k,
+            None => convert_custom_key(
+                &custom_key.ok_or(MontycatClientError::ClientNoValidInputProvided)?,
+            ),
+        };
 
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
