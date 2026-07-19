@@ -165,21 +165,26 @@ pub(crate) fn define_type(field_type: &str) -> Result<(&'static str, bool), Mont
     Ok((ty, nullable))
 }
 
-/// Processes a bulk of JSON-serializable values into a single JSON string and optional schema.
+/// Processes a bulk of JSON-serializable values into per-value JSON strings and an optional schema.
+///
+/// Each value is serialized individually — the server's `insert_bulk` command
+/// takes `bulk_values: Vec<String>` and creates one record per element
+/// (matching the Python/Node clients). Serializing the whole vector into one
+/// string would store a single record whose value is the array.
 ///
 /// # Arguments
 /// - `values: Vec<T>` : A vector of values to be processed.
 ///
 /// # Returns
-/// - `Result<(String, Option<String>), MontycatClientError>` : A result containing the processed JSON string and an optional schema, or an error if processing fails.
+/// - `Result<(Vec<String>, Option<String>), MontycatClientError>` : The per-value JSON strings and an optional schema, or an error if processing fails.
 ///
 pub(crate) async fn process_bulk_values<T>(
     values: Vec<T>,
-) -> Result<(String, Option<String>), MontycatClientError>
+) -> Result<(Vec<String>, Option<String>), MontycatClientError>
 where
     T: Serialize + RuntimeSchema + Send + 'static,
 {
-    let res: (String, Option<String>) = tokio::task::spawn_blocking(move || {
+    let res: (Vec<String>, Option<String>) = tokio::task::spawn_blocking(move || {
         let serialized_and_schemas: Result<Vec<(String, Option<String>)>, MontycatClientError> =
             values
                 .into_par_iter()
@@ -208,9 +213,7 @@ where
             _ => return Err(MontycatClientError::ClientMultipleSchemasFound),
         };
 
-        let value_to_send: String = process_json_value(&serialized_values)?;
-
-        Ok((value_to_send, schema))
+        Ok((serialized_values, schema))
     })
     .await
     .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;

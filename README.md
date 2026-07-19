@@ -1,13 +1,33 @@
-# 🚀 Rust Client for Montycat - High-Performance NoSQL Database. The Fastest, Safest, and Most Elegant Database Client Ever Built in Rust.
+# 🦀 Montycat for Rust — The AI-Native NoSQL Database with Semantic Search for RAG & Agents
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+### Abolish the two-database stack.
+
+The official async Rust client for [Montycat](https://montygovernance.com) — a self-hosted **NoSQL + vector database** with AI **semantic search** forged into the core, built for **RAG and AI-agent memory**. One Rust engine, not a sprawl of services. **Your hardware. Your data. Your meaning.**
+
 [![Crates.io](https://img.shields.io/crates/v/montycat.svg)](https://crates.io/crates/montycat)
+[![Downloads](https://img.shields.io/crates/d/montycat.svg)](https://crates.io/crates/montycat)
 [![Docs.rs](https://docs.rs/montycat/badge.svg)](https://docs.rs/montycat)
+[![Docker Pulls](https://img.shields.io/docker/pulls/montygovernance/montycat)](https://hub.docker.com/r/montygovernance/montycat)
 [![CI](https://github.com/MontyGovernance/montycat_rust/workflows/CI/badge.svg)](https://github.com/MontyGovernance/montycat_rust/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/MontyGovernance/montycat_rust/blob/master/LICENSE)
+
+```rust
+// Search your data by MEANING — no external APIs, no separate vector database.
+// (already ON by default in the montycat-semantic server edition)
+let hits = keyspace
+    .semantic_search_get_values("something to listen to music without wires", None, None, false, false)
+    .await;
+// → [{ key, score, value: { "name": "Wireless Headphones" } }, ...]  (matched by meaning, not keywords)
+```
+
+> ### 🧩 All-in-one. AI-native. **Zero external dependencies.**
+> The vector-embedding engine runs **inside** the database — **no** separate vector DB, **no** embedding API, **no** API keys, **no** sidecar service. One engine, one binary, your hardware.
 
 ## 🦀 What Is Montycat?
 
-Montycat isn’t just another database — it’s the future of data systems. Built entirely in Rust, Montycat redefines what performance, safety, and developer ergonomics mean in the NoSQL world. It fuses the best ideas from distributed data meshes, real-time streaming, and memory-safe system design — giving developers the only database engine that feels truly native to Rust. Montycat eliminates everything ugly about existing databases — no bloated SQL syntax, no fragile ORMs, no half-baked drivers. Just pure async power, memory safety, and a clean, structured API that works exactly the way a Rust developer expects.
+For a generation we were told the price of intelligence was two systems: a database for your records, and a separate vector store — with its per-query bill — for their meaning. Montycat rejects that tax. It is a **self-hosted NoSQL + vector database**: one Rust-powered engine with semantic search built in, so **RAG, AI-agent memory, and vector search** live where your data already lives. No cloud lock-in. No ops headache.
+
+Think of it as an **open-source, self-hosted alternative to Pinecone, Weaviate, Chroma, Qdrant, and Redis** — a **vector database _and_ a NoSQL store in a single engine**. Built entirely in Rust and exposed through a client that *is* Rust, not a wrapper around legacy C: no bloated SQL, no fragile ORMs, no half-baked drivers. Just pure async power, memory safety, and a structured API that works exactly the way a Rust developer expects. Montycat isn't a database inspired by Rust. It is a break with the databases you know.
 
 ## 🦾 Built Different — The Montycat Philosophy
 
@@ -42,23 +62,47 @@ Montycat isn’t just another database — it’s the future of data systems. Bu
 - 🧱 `Client Memory-Safe and Zero-Copy` Written entirely in Rust — leveraging ownership and zero-cost abstractions for maximum efficiency and no GC overhead.
 - 🕹️ `Developer-Centric Ergonomics` Clean, composable APIs that make even complex data interactions intuitive. The easiest database client for Rust!
 
+## 🔍 Example Use Cases
+
+- **RAG pipelines & semantic retrieval** for LLM-powered Rust services
+- **AI agent long-term memory** that survives restarts
+- **Semantic search & recommendations** — match intent, not keywords
+- Real-time dashboards and event-driven systems (Tokio, Axum, Actix, Warp)
+- High-throughput microservice data stores
+- Data products in a decentralized Mesh architecture
+
+## 🚀 Get the Engine (30 seconds)
+
+The client talks to a Montycat server. Fastest way — Docker, with AI semantic search built in:
+
+```bash
+docker run -d --name montycat \
+  -p 21210:21210 -p 21211:21211 \
+  -e MONTYCAT_SUPEROWNER="admin" \
+  -e MONTYCAT_PASSWORD="change-me" \
+  -v montycat_data:/app/.montycat \
+  montygovernance/montycat:semantic
+```
+
+Prefer the lean edition without the embedding engine? Use the `latest` tag. Prebuilt packages (apt, macOS, Windows) at **https://montygovernance.com**.
+
 ## Installation
 
-```bash
+Add the client to your `Cargo.toml`:
+
+```toml
 [dependencies]
-montycat = { version = "1"}
+montycat = "0.2"
 tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde = {version = "1", features = ["derive"]}
 ```
 
-## If using TLS 
+With TLS:
 
-```bash
-montycat = { version = "1", features = ["tls"] }
+```toml
+montycat = { version = "0.2", features = ["tls"] }
 ```
-
-## `For installation of the Montycat Engine, see 👉 https://montygovernance.com`
 
 ## Quick Start
 
@@ -98,10 +142,11 @@ async fn main() {
         name: "Monty".to_string(),
     };
 
-    let insert_res_in_mem = in_mem.insert_value(employee, None).await;
+    // insert_value(custom_key, value, [expire (in-memory only),] wait_for_index)
+    let insert_res_in_mem = in_mem.insert_value(None, employee.clone(), None, None).await;
     println!("Insert response: {:?}", insert_res_in_mem);
 
-    let insert_res_pers = persistent.insert_value(employee, None).await;
+    let insert_res_pers = persistent.insert_value(None, employee, None).await;
     println!("Insert response: {:?}", insert_res_pers);
 
     let search_criteria = serde_json::json!({
@@ -109,7 +154,7 @@ async fn main() {
     });
 
     // Lookup values where name is Monty
-    let lookup_res_in_mem = in_mem.lookup_values_where(search_criteria, None, false, true, false, None).await;
+    let lookup_res_in_mem = in_mem.lookup_values_where(search_criteria.clone(), None, false, true, false, None).await;
     // Parse into desired type
     let parsed = MontycatResponse::<Option<Employee>>::parse_response(lookup_res_in_mem);
     println!("Lookup response: {:?}", parsed);
@@ -127,6 +172,58 @@ async fn main() {
     println!("Lookup response: {:?}", parsed);
 
 }
+```
+
+## 🧠 AI-Native Semantic Search — Vector Search Built Into Your Database
+
+**Stop bolting a separate vector database onto your stack.** Montycat ranks your data by
+*meaning*, not keywords — an embedded, on-device vector-embedding engine turns every write
+into a searchable vector automatically. It's the retrieval layer for **RAG pipelines, AI
+agents, semantic search, recommendation engines, and LLM-powered apps** — with **zero
+external APIs, zero API keys, and zero extra infrastructure.**
+
+- 🔎 **Semantic / vector search** — kNN similarity over on-device embeddings, not brittle keyword matches.
+- 🤖 **Built for AI** — RAG, semantic retrieval, AI agents, recommendations, dedup, clustering.
+- 🔒 **Private & free** — embeddings never leave your machine. No OpenAI/Cohere bill, no data egress.
+- ⚡ **One system, not two** — your data *and* its vectors live in the same database. No sync jobs, no drift, no second service to run.
+- 🚀 **Zero setup** — no index tuning, no pipeline: `enable_semantic_search()` and you're ranking by meaning.
+
+> **⚠️ Requires the semantic edition of the server — nothing to compile.** Semantic
+> search runs an embedded ONNX vector-embedding engine that ships only in the
+> **`montycat-semantic`** edition; the default lean `montycat` server does not include it.
+> Get it the way that suits you — pull the **Docker image**
+> (`montygovernance/montycat:semantic`), download the prebuilt **package**, or install
+> `montycat-semantic` from the **apt repository**. The Rust client API is identical either
+> way; just point it at a semantic-edition server (semantic search is enabled by default
+> there, using the `bge-small` model).
+
+Beyond exact-match `lookup_keys_where` / `lookup_values_where`, Montycat ranks stored
+items by *meaning* using on-device vector embeddings — no external API, no extra service,
+no separate vector database. It's ON by default in the semantic edition, so just search.
+
+```rust
+use montycat::{Keyspace, Limit, MontycatResponse};
+
+// (reuses the `engine` and `persistent` keyspace from the Quick Start above)
+
+// Rank stored items by meaning — two flavors:
+//   get_values -> each hit is { key, score, value }
+//   get_keys   -> each hit is { key, score } (lighter; fetch a page later with get_bulk)
+let values = persistent
+    .semantic_search_get_values("something to listen to music without wires", Some(Limit { start: 0, stop: 5 }), None, false, false)
+    .await;
+
+// Keys only, with a cosine-similarity floor (range [-1, 1]):
+let _keys = persistent
+    .semantic_search_get_keys("something to listen to music without wires", Some(Limit { start: 0, stop: 5 }), Some(0.35))
+    .await;
+
+let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(values);
+println!("{:?}", parsed);
+
+// Control the DB-wide switch (optional — it's already on):
+// switch the embedding model: "minilm" | "bge-small" (default) | "bge-base" | "e5-small"
+engine.enable_semantic_search(Some("bge-base"), None, None).await;
 ```
 
 ## Want more?
@@ -152,4 +249,17 @@ async fn main() {
 - 100% Rust
 - 0% Nonsense
 
-## `For installation of the Montycat Engine, see 👉 https://montygovernance.com`
+## 🔗 Links
+
+- 🌐 **Website & Docs** — https://montygovernance.com
+- 📦 **crates.io** — https://crates.io/crates/montycat
+- 📚 **docs.rs** — https://docs.rs/montycat
+- 🐳 **Docker Hub** — https://hub.docker.com/r/montygovernance/montycat
+- 💻 **Source** — https://github.com/MontyGovernance/montycat_rust
+
+## ❓ FAQ
+
+- **Is Montycat a vector database or a NoSQL database?** Both — one engine. Store records and query them by *meaning* (vector / semantic search) or by key/schema, without running two systems.
+- **Do I need OpenAI or an embedding API?** No. Embeddings run on-device in the `montycat-semantic` server. No API keys, no per-query bill, no data egress.
+- **Is it a Pinecone / Weaviate / Chroma / Qdrant alternative?** Yes — self-hosted and open-source, with a NoSQL store built in.
+- **Which async runtime?** Tokio. Works with Axum, Actix, Warp, and any Tokio-based stack.

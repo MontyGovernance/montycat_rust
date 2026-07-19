@@ -50,4 +50,15 @@ pub(crate) struct StoreRequestClient {
     pub volumes: Vec<String>,
     pub latest_volume: bool,
     pub pointers_metadata: bool,
+    /// Only `semantic_search` honors min_score; skipped when None so the wire
+    /// is unchanged for every other command (the server defaults it to None).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_score: Option<f32>,
+    /// Per-request override for synchronous index waiting on persistent writes.
+    /// `Some(true)` → the write returns only after its indexes update
+    /// (read-your-writes); `Some(false)` → fire-and-forget; `None` → use the
+    /// server-wide default. Skipped when None so the wire is unchanged for
+    /// callers that don't set it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wait_for_index: Option<bool>,
 }

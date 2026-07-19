@@ -179,6 +179,7 @@ impl InMemoryKeyspace {
         custom_key: Option<String>,
         value: T,
         expire_sec: Option<usize>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + RuntimeSchema + Send + 'static,
@@ -223,6 +224,7 @@ impl InMemoryKeyspace {
             command,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
             key,
+            wait_for_index,
             ..Default::default()
         };
 
@@ -267,6 +269,7 @@ impl InMemoryKeyspace {
         &self,
         custom_key: String,
         expire_sec: Option<usize>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
@@ -293,6 +296,7 @@ impl InMemoryKeyspace {
             command,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
             key: Some(key),
+            wait_for_index,
             ..Default::default()
         };
 
@@ -505,6 +509,7 @@ impl InMemoryKeyspace {
         custom_key: Option<String>,
         value: T,
         expire_sec: Option<usize>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
@@ -513,9 +518,14 @@ impl InMemoryKeyspace {
             return Err(MontycatClientError::ClientNoValidInputProvided);
         }
 
-        let key: String = key
-            .or(custom_key)
-            .ok_or(MontycatClientError::ClientNoValidInputProvided)?;
+        // A custom key must be hashed to its numeric key like every other op;
+        // sending it raw makes the server fail to parse it as a key.
+        let key: String = match key {
+            Some(k) => k,
+            None => convert_custom_key(
+                &custom_key.ok_or(MontycatClientError::ClientNoValidInputProvided)?,
+            ),
+        };
 
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
@@ -540,6 +550,7 @@ impl InMemoryKeyspace {
             value: value_to_send,
             command,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
+            wait_for_index,
             ..Default::default()
         };
 
@@ -586,6 +597,7 @@ impl InMemoryKeyspace {
         &self,
         bulk_values: Vec<T>,
         expire_sec: Option<usize>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + RuntimeSchema + Send + 'static,
@@ -599,9 +611,9 @@ impl InMemoryKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "insert_value".to_string();
+        let command: String = "insert_bulk".to_string();
 
-        let (value_to_send, schema) = process_bulk_values(bulk_values).await?;
+        let (serialized_values, schema) = process_bulk_values(bulk_values).await?;
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             schema,
@@ -611,9 +623,10 @@ impl InMemoryKeyspace {
             store,
             persistent,
             distributed,
-            value: value_to_send,
+            bulk_values: serialized_values,
             command,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
+            wait_for_index,
             ..Default::default()
         };
 
@@ -660,6 +673,7 @@ impl InMemoryKeyspace {
         &self,
         bulk_values: Vec<T>,
         expire_sec: Option<usize>,
+        wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
         T: Serialize + Send + 'static,
@@ -673,9 +687,14 @@ impl InMemoryKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "insert_value".to_string();
+        let command: String = "insert_bulk".to_string();
 
-        let value_to_send: String = process_json_value(&bulk_values)?;
+        // One JSON string per value — the server's insert_bulk creates one
+        // record per bulk_values element (see process_bulk_values).
+        let serialized_values: Vec<String> = bulk_values
+            .iter()
+            .map(process_json_value)
+            .collect::<Result<Vec<String>, MontycatClientError>>()?;
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             username: engine.username.clone(),
@@ -684,9 +703,10 @@ impl InMemoryKeyspace {
             store,
             persistent,
             distributed,
-            value: value_to_send,
+            bulk_values: serialized_values,
             command,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
+            wait_for_index,
             ..Default::default()
         };
 
