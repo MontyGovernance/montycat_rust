@@ -1295,7 +1295,7 @@ where
     /// ```rust, ignore
     /// let res = keyspace.semantic_search_get_keys("astronomy and outer space", Some(Limit { start: 0, stop: 3 }), None).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
-    /// // each hit: {"key": ..., "score": ...}
+    /// // each hit: {"__key__": ..., "__score__": ...}
     /// ```
     ///
     /// # Errors
@@ -1342,7 +1342,9 @@ where
     /// ```rust, ignore
     /// let res = keyspace.semantic_search_get_values("recipes for dinner", None, Some(0.3), false, false).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
-    /// // each hit: {"key": ..., "score": ..., "value": ...}
+    /// // each hit: {"__key__": ..., "__score__": ..., "__value__": ...} — the
+    /// // same dunder envelope `lookup_values_where` returns with key_included=true,
+    /// // plus the score
     /// ```
     ///
     /// # Errors
