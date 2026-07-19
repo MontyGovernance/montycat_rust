@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-07-19
+
+### ⚠️ Breaking
+- **Semantic search response shape**: each hit is now `{__key__, __score__, __value__}`
+  (was `{key, score, value}`); `semantic_search_get_keys` returns `{__key__, __score__}`.
+  Aligns with the dunder envelope `lookup_values` returns with `key_included`. Wire-breaking
+  for code that read the old `key`/`score`/`value` field names off the parsed payload.
+
 ## [0.2.0] - 2026-07-10
 
 Semantic search, per-request/DB-wide index-wait control, and a batch of operator
