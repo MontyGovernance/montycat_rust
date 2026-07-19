@@ -366,10 +366,8 @@ impl Engine {
             command.push(store.into());
         }
 
-        let request: Req = Req::new_raw_command(
-            command,
-            vec![self.username.clone(), self.password.clone()],
-        );
+        let request: Req =
+            Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
         let response: Option<Vec<u8>> = send_data(
             &self.host,
@@ -425,10 +423,8 @@ impl Engine {
             command.push(store.into());
         }
 
-        let request: Req = Req::new_raw_command(
-            command,
-            vec![self.username.clone(), self.password.clone()],
-        );
+        let request: Req =
+            Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
         let response: Option<Vec<u8>> = send_data(
             &self.host,
@@ -588,7 +584,10 @@ impl Engine {
     ///
     /// # Errors
     /// Returns MontycatClientError if there is a communication error.
-    pub async fn set_snapshot_rate(&self, rate: u64) -> Result<Option<Vec<u8>>, MontycatClientError> {
+    pub async fn set_snapshot_rate(
+        &self,
+        rate: u64,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         self.admin_command(vec!["snapshot-rate".into(), rate.to_string()])
             .await
     }

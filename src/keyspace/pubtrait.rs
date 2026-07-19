@@ -1359,8 +1359,15 @@ where
         with_pointers: bool,
         pointers_metadata: bool,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        self.semantic_search_core(query, limit, min_score, with_pointers, true, pointers_metadata)
-            .await
+        self.semantic_search_core(
+            query,
+            limit,
+            min_score,
+            with_pointers,
+            true,
+            pointers_metadata,
+        )
+        .await
     }
 
     /// Subscribes to changes in the persistent keyspace.

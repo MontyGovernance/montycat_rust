@@ -528,6 +528,8 @@ dependencies = [
 [[package]]
 name = "montycat_serialization_derive"
 version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "012e104907f8c49de4e27129cc592571bfe16ba21e8fdddd871754398263676a"
 dependencies = [
  "hashbrown 0.17.1",
  "proc-macro2",
