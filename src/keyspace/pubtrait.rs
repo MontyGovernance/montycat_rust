@@ -39,6 +39,7 @@ use std::collections::HashMap;
 /// - `MontycatClientError::ClientValueParsingError`: If there is an error parsing the response.
 /// - `MontycatClientError::ClientSelectedBothKeyAndCustomKey`: If both key and custom_key are provided.
 /// - `MontycatClientError::ClientNoValidInputProvided`: If neither key nor custom_key are provided.
+#[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Keyspace
 where
