@@ -54,6 +54,12 @@ pub(crate) struct StoreRequestClient {
     /// is unchanged for every other command (the server defaults it to None).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_score: Option<f32>,
+    /// Hybrid metadata pre-filter for `semantic_search` — a JSON-encoded
+    /// criteria object in the same shape `lookup_keys_where` takes (a hard
+    /// AND constraint; ranking stays pure cosine). Skipped when None so the
+    /// wire is unchanged for every other command.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantic_filter: Option<String>,
     /// Per-request override for synchronous index waiting on persistent writes.
     /// `Some(true)` → the write returns only after its indexes update
     /// (read-your-writes); `Some(false)` → fire-and-forget; `None` → use the

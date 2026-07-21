@@ -39,6 +39,7 @@ use std::collections::HashMap;
 /// - `MontycatClientError::ClientValueParsingError`: If there is an error parsing the response.
 /// - `MontycatClientError::ClientSelectedBothKeyAndCustomKey`: If both key and custom_key are provided.
 /// - `MontycatClientError::ClientNoValidInputProvided`: If neither key nor custom_key are provided.
+#[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Keyspace
 where
@@ -1207,6 +1208,7 @@ where
         query: &str,
         limit: Option<Limit>,
         min_score: Option<f32>,
+        filters: Option<serde_json::Value>,
         with_pointers: bool,
         key_included: bool,
         pointers_metadata: bool,
@@ -1214,6 +1216,21 @@ where
         if query.trim().is_empty() {
             return Err(MontycatClientError::ClientNoValidInputProvided);
         }
+
+        // Hybrid metadata pre-filter: JSON-encoded like lookup criteria,
+        // omitted from the wire when None. An empty criteria object is
+        // rejected rather than sent — it would match nothing server-side, so
+        // the caller almost certainly meant the unfiltered method (same guard
+        // the Python/Node/Dart clients apply).
+        let semantic_filter: Option<String> = match &filters {
+            Some(criteria) => {
+                if criteria.as_object().is_none_or(|map| map.is_empty()) {
+                    return Err(MontycatClientError::ClientNoValidInputProvided);
+                }
+                Some(process_json_value(criteria)?)
+            }
+            None => None,
+        };
 
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
@@ -1244,6 +1261,7 @@ where
             key_included,
             pointers_metadata,
             min_score,
+            semantic_filter,
             limit_output: limit_map,
             search_criteria: query.to_owned(),
             username: engine.username.clone(),
@@ -1310,7 +1328,54 @@ where
         limit: Option<Limit>,
         min_score: Option<f32>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        self.semantic_search_core(query, limit, min_score, false, false, false)
+        self.semantic_search_core(query, limit, min_score, None, false, false, false)
+            .await
+    }
+
+    /// Hybrid semantic search returning ranked keys only, restricted by a
+    /// metadata filter.
+    ///
+    /// Same ranking as `semantic_search_get_keys`, but only items matching
+    /// `filters` are considered — a hard AND constraint through the same
+    /// criteria stack as `lookup_keys_where` (indexed fields, timestamps,
+    /// pointers). Scores stay pure cosine; the filter never boosts, it only
+    /// restricts. A filter matching nothing returns `[]`.
+    ///
+    /// A separate method (not a parameter on `semantic_search_get_keys`) so
+    /// existing integrations keep their exact signature.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The natural-language query text to embed and search for
+    /// * `filters` - Metadata criteria, same shape `lookup_keys_where` takes
+    /// * `limit` - An optional Limit over the ranked hits; None lets the server
+    ///   apply its default top-k (10)
+    /// * `min_score` - Drop hits whose cosine similarity (in [-1, 1]) is below
+    ///   this value; None applies no score filter
+    ///
+    /// # Examples
+    ///
+    /// ```rust, ignore
+    /// // only rank items whose indexed `category` equals "space"
+    /// let res = keyspace.semantic_search_get_keys_where("astronomy", serde_json::json!({"category": "space"}), None, None).await;
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    /// // each hit: {"__key__": ..., "__score__": ...}
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
+    ///
+    async fn semantic_search_get_keys_where(
+        &self,
+        query: &str,
+        filters: serde_json::Value,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.semantic_search_core(query, limit, min_score, Some(filters), false, false, false)
             .await
     }
 
@@ -1365,6 +1430,67 @@ where
             query,
             limit,
             min_score,
+            None,
+            with_pointers,
+            true,
+            pointers_metadata,
+        )
+        .await
+    }
+
+    /// Hybrid semantic search returning ranked hits with their values,
+    /// restricted by a metadata filter.
+    ///
+    /// Same ranking as `semantic_search_get_values`, but only items matching
+    /// `filters` are considered — a hard AND constraint through the same
+    /// criteria stack as `lookup_keys_where` (indexed fields, timestamps,
+    /// pointers). Scores stay pure cosine; the filter never boosts, it only
+    /// restricts. A filter matching nothing returns `[]`.
+    ///
+    /// A separate method (not a parameter on `semantic_search_get_values`) so
+    /// existing integrations keep their exact signature.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The natural-language query text to embed and search for
+    /// * `filters` - Metadata criteria, same shape `lookup_keys_where` takes
+    /// * `limit` - An optional Limit over the ranked hits; None lets the server
+    ///   apply its default top-k (10)
+    /// * `min_score` - Drop hits whose cosine similarity (in [-1, 1]) is below
+    ///   this value; None applies no score filter
+    /// * `with_pointers` - Whether to include pointers (foreign values) in each
+    ///   returned value
+    /// * `pointers_metadata` - Whether to include pointer metadata in each
+    ///   returned value
+    ///
+    /// # Examples
+    ///
+    /// ```rust, ignore
+    /// let res = keyspace.semantic_search_get_values_where("astronomy", serde_json::json!({"category": "space"}), None, None, false, false).await;
+    /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
+    /// // each hit: {"__key__": ..., "__score__": ..., "__value__": ...}
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
+    /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
+    ///
+    async fn semantic_search_get_values_where(
+        &self,
+        query: &str,
+        filters: serde_json::Value,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+        with_pointers: bool,
+        pointers_metadata: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.semantic_search_core(
+            query,
+            limit,
+            min_score,
+            Some(filters),
             with_pointers,
             true,
             pointers_metadata,

@@ -17,7 +17,7 @@ The official async Rust client for [Montycat](https://montygovernance.com) — a
 let hits = keyspace
     .semantic_search_get_values("Show all Bluetooth devices", None, None, false, false)
     .await;
-// → [{ __key__, __score__, __value__: { "name": "Wireless Headphones" } }, ...]  (matched by meaning, not keywords)
+// → [{ __key__: 123..., __score__: 0.82, __value__: { "name": "Wireless Headphones" }}]
 ```
 
 > ### 🧩 All-in-one. AI-native. **Zero external dependencies.**
@@ -80,7 +80,7 @@ docker run -d --name montycat \
   -p 21210:21210 -p 21211:21211 \
   -e MONTYCAT_SUPEROWNER="admin" \
   -e MONTYCAT_PASSWORD="change-me" \
-  -v montycat_data:/app/.montycat \
+  -v montycat_data:/var/lib/.montycat \
   montygovernance/montycat:semantic
 ```
 
@@ -224,6 +224,29 @@ println!("{:?}", parsed);
 // Control the DB-wide switch (optional — it's already on):
 // switch the embedding model: "minilm" | "bge-small" (default) | "bge-base" | "e5-small"
 engine.enable_semantic_search(Some("bge-base"), None, None).await;
+```
+
+### Hybrid semantic search
+
+Restrict semantic ranking to records matching structured metadata. The filter
+is a hard AND pre-filter with the same criteria shape as `lookup_keys_where`;
+it does not boost or otherwise alter cosine scores.
+
+```rust
+let filtered = persistent
+    .semantic_search_get_values_where(
+        "astronomy and outer space",
+        serde_json::json!({"category": "space"}),
+        Some(Limit { start: 0, stop: 5 }),
+        Some(0.35),
+        false,
+        false,
+    )
+    .await;
+
+let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(filtered);
+// each hit: {"__key__": ..., "__score__": ..., "__value__": ...}
+println!("{:?}", parsed);
 ```
 
 ## Want more?
