@@ -223,7 +223,7 @@ println!("{:?}", parsed);
 
 // Control the DB-wide switch (optional — it's already on):
 // switch the embedding model: "minilm" | "bge-small" (default) | "bge-base" | "e5-small"
-engine.enable_semantic_search(Some("bge-base"), None, None).await;
+engine.enable_semantic_search(Some(SemanticModel::BgeBase), None, None).await;
 ```
 
 ### Hybrid semantic search
@@ -286,3 +286,21 @@ println!("{:?}", parsed);
 - **Do I need OpenAI or an embedding API?** No. Embeddings run on-device in the `montycat-semantic` server. No API keys, no per-query bill, no data egress.
 - **Is it a Pinecone / Weaviate / Chroma / Qdrant alternative?** Yes — self-hosted and open-source, with a NoSQL store built in.
 - **Which async runtime?** Tokio. Works with Axum, Actix, Warp, and any Tokio-based stack.
+## Data mesh governance
+
+Owners can inspect their effective policy and superowners can grant delegated
+keyspace authority programmatically:
+
+```rust,ignore
+engine.policy_grant(
+    "alice", PolicyCapability::ProvisionKeyspace, "catalog", None,
+    &[PolicyKeyspaceType::InMemory, PolicyKeyspaceType::Persistent], &[SemanticModel::BgeSmall],
+).await?;
+engine.policy_view(Some("alice"), Some("catalog")).await?;
+engine.enable_semantic_search_for_keyspace(
+    "catalog", "products", Some(SemanticModel::BgeSmall), None,
+).await?;
+```
+
+Superowners may also call `policy_validate`, `policy_plan`, `policy_apply`, and
+`policy_export` with JSON or YAML policy documents.

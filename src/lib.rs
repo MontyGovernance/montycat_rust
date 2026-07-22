@@ -7,7 +7,7 @@ pub mod response;
 pub mod tools;
 pub mod traits;
 
-pub use engine::structure::{Engine, ValidPermissions};
+pub use engine::structure::{Engine, PolicyCapability, PolicyFormat, PolicyKeyspaceType, SemanticModel, ValidPermissions};
 pub use errors::MontycatClientError;
 pub use keyspace::{
     pubtrait::Keyspace,

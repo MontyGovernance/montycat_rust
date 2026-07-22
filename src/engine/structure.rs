@@ -33,6 +33,26 @@ impl ValidPermissions {
     }
 }
 
+/// Capabilities that can be granted through data-mesh governance policies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyCapability { ProvisionKeyspace, RemoveKeyspace, ManageSnapshots, ManageSemantic, ManageSchema, ManageAccess }
+impl PolicyCapability { pub const fn as_str(self) -> &'static str { match self { Self::ProvisionKeyspace => "provision-keyspace", Self::RemoveKeyspace => "remove-keyspace", Self::ManageSnapshots => "manage-snapshots", Self::ManageSemantic => "manage-semantic", Self::ManageSchema => "manage-schema", Self::ManageAccess => "manage-access" } } }
+
+/// Keyspace storage types addressable by governance policies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyKeyspaceType { InMemory, Persistent, Distributed }
+impl PolicyKeyspaceType { pub const fn as_str(self) -> &'static str { match self { Self::InMemory => "inmemory", Self::Persistent => "persistent", Self::Distributed => "distributed" } } }
+
+/// Compiled embedding models supported by Montycat semantic search.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemanticModel { MiniLm, BgeSmall, BgeBase, E5Small }
+impl SemanticModel { pub const fn as_str(self) -> &'static str { match self { Self::MiniLm => "minilm", Self::BgeSmall => "bge-small", Self::BgeBase => "bge-base", Self::E5Small => "e5-small" } } }
+
+/// Serialization formats accepted by policy manifest commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyFormat { Json, Yaml, Yml }
+impl PolicyFormat { pub const fn as_str(self) -> &'static str { match self { Self::Json => "json", Self::Yaml => "yaml", Self::Yml => "yml" } } }
+
 /// Represents the Montycat engine configuration and connection details.
 ///
 /// # Fields
@@ -340,7 +360,7 @@ impl Engine {
     /// # Examples
     /// ```rust, ignore
     /// let engine = Engine::from_uri("montycat://username:password@localhost:21210/mystore").unwrap();
-    /// let response = engine.enable_semantic_search(Some("bge-small"), None, None).await;
+    /// let response = engine.enable_semantic_search(Some(SemanticModel::BgeSmall), None, None).await;
     /// ```
     ///
     /// # Errors
@@ -348,14 +368,14 @@ impl Engine {
     ///
     pub async fn enable_semantic_search(
         &self,
-        model: Option<&str>,
+        model: Option<SemanticModel>,
         field: Option<&str>,
         store: Option<&str>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let mut command: Vec<String> = vec!["enable-semantic-search".into()];
         if let Some(model) = model {
             command.push("model".into());
-            command.push(model.into());
+            command.push(model.as_str().into());
         }
         if let Some(field) = field {
             command.push("field".into());
@@ -877,6 +897,336 @@ impl Engine {
         .await?;
 
         Ok(response)
+    }
+
+    async fn execute_governance_command(
+        &self,
+        command: Vec<String>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let request =
+            Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
+        send_data(
+            &self.host,
+            self.port,
+            request.byte_down()?.as_slice(),
+            None,
+            None,
+            self.use_tls,
+        )
+        .await
+    }
+
+    /// Enable semantic management for one keyspace without changing the
+    /// existing DB/store-scoped API.
+    pub async fn enable_semantic_search_for_keyspace(
+        &self,
+        store: &str,
+        keyspace: &str,
+        model: Option<SemanticModel>,
+        field: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec!["enable-semantic-search".into()];
+        if let Some(model) = model {
+            command.extend(["model".into(), model.as_str().into()]);
+        }
+        if let Some(field) = field {
+            command.extend(["field".into(), field.into()]);
+        }
+        command.extend([
+            "store".into(),
+            store.into(),
+            "keyspace".into(),
+            keyspace.into(),
+        ]);
+        self.execute_governance_command(command).await
+    }
+
+    /// Disable semantic management for one keyspace.
+    pub async fn disable_semantic_search_for_keyspace(
+        &self,
+        store: &str,
+        keyspace: &str,
+        drop_vectors: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec!["disable-semantic-search".into()];
+        if drop_vectors {
+            command.push("drop-vectors".into());
+        }
+        command.extend([
+            "store".into(),
+            store.into(),
+            "keyspace".into(),
+            keyspace.into(),
+        ]);
+        self.execute_governance_command(command).await
+    }
+
+    pub async fn policy_view(
+        &self,
+        owner: Option<&str>,
+        store: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec!["policy-view".into()];
+        if let Some(owner) = owner {
+            command.extend(["owner".into(), owner.into()]);
+        }
+        if let Some(store) = store {
+            command.extend(["store".into(), store.into()]);
+        }
+        self.execute_governance_command(command).await
+    }
+
+    pub async fn policy_history(
+        &self,
+        owner: Option<&str>,
+        store: Option<&str>,
+        keyspace: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec!["policy-history".into()];
+        if let Some(owner) = owner {
+            command.extend(["owner".into(), owner.into()]);
+        }
+        if let Some(store) = store {
+            command.extend(["store".into(), store.into()]);
+        }
+        if let Some(keyspace) = keyspace {
+            command.extend(["keyspace".into(), keyspace.into()]);
+        }
+        self.execute_governance_command(command).await
+    }
+
+    pub async fn policy_explain(
+        &self,
+        capability: PolicyCapability,
+        store: &str,
+        owner: Option<&str>,
+        keyspace: Option<&str>,
+        keyspace_type: Option<PolicyKeyspaceType>,
+        model: Option<SemanticModel>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec![
+            "policy-explain".into(),
+            "capability".into(),
+            capability.as_str().into(),
+            "store".into(),
+            store.into(),
+        ];
+        if let Some(owner) = owner {
+            command.extend(["owner".into(), owner.into()]);
+        }
+        if let Some(keyspace) = keyspace {
+            command.extend(["keyspace".into(), keyspace.into()]);
+        }
+        if let Some(kind) = keyspace_type {
+            command.extend(["type".into(), kind.as_str().into()]);
+        }
+        if let Some(model) = model {
+            command.extend(["model".into(), model.as_str().into()]);
+        }
+        self.execute_governance_command(command).await
+    }
+
+    async fn policy_mutation(
+        &self,
+        operation: &str,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec![
+            operation.into(),
+            "owner".into(),
+            owner.into(),
+            "capability".into(),
+            capability.as_str().into(),
+            "store".into(),
+            store.into(),
+        ];
+        if let Some(keyspace) = keyspace {
+            command.extend(["keyspace".into(), keyspace.into()]);
+        }
+        if !types.is_empty() {
+            command.push("types".into());
+            command.extend(types.iter().map(|value| value.as_str().into()));
+        }
+        if !models.is_empty() {
+            command.push("models".into());
+            command.extend(models.iter().map(|value| value.as_str().into()));
+        }
+        self.execute_governance_command(command).await
+    }
+
+    pub async fn policy_grant(
+        &self,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_mutation(
+            "policy-grant",
+            owner,
+            capability,
+            store,
+            keyspace,
+            types,
+            models,
+        )
+        .await
+    }
+    pub async fn policy_revoke(
+        &self,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_mutation(
+            "policy-revoke",
+            owner,
+            capability,
+            store,
+            keyspace,
+            types,
+            models,
+        )
+        .await
+    }
+    pub async fn policy_deny(
+        &self,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_mutation(
+            "policy-deny",
+            owner,
+            capability,
+            store,
+            keyspace,
+            types,
+            models,
+        )
+        .await
+    }
+    pub async fn policy_remove_denial(
+        &self,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_mutation(
+            "policy-remove-denial",
+            owner,
+            capability,
+            store,
+            keyspace,
+            types,
+            models,
+        )
+        .await
+    }
+    pub async fn policy_preview_grant(
+        &self,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_mutation(
+            "policy-preview-grant",
+            owner,
+            capability,
+            store,
+            keyspace,
+            types,
+            models,
+        )
+        .await
+    }
+    pub async fn policy_preview_revoke(
+        &self,
+        owner: &str,
+        capability: PolicyCapability,
+        store: &str,
+        keyspace: Option<&str>,
+        types: &[PolicyKeyspaceType],
+        models: &[SemanticModel],
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_mutation(
+            "policy-preview-revoke",
+            owner,
+            capability,
+            store,
+            keyspace,
+            types,
+            models,
+        )
+        .await
+    }
+
+    async fn policy_manifest(
+        &self,
+        operation: &str,
+        document: &str,
+        format: PolicyFormat,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.execute_governance_command(vec![
+            operation.into(),
+            "format".into(),
+            format.as_str().into(),
+            "document".into(),
+            document.into(),
+        ])
+        .await
+    }
+    pub async fn policy_validate(
+        &self,
+        document: &str,
+        format: PolicyFormat,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_manifest("policy-validate", document, format)
+            .await
+    }
+    pub async fn policy_plan(
+        &self,
+        document: &str,
+        format: PolicyFormat,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_manifest("policy-plan", document, format).await
+    }
+    pub async fn policy_apply(
+        &self,
+        document: &str,
+        format: PolicyFormat,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.policy_manifest("policy-apply", document, format).await
+    }
+    pub async fn policy_export(
+        &self,
+        format: PolicyFormat,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.execute_governance_command(vec![
+            "policy-export".into(),
+            "format".into(),
+            format.as_str().into(),
+        ])
+        .await
     }
 }
 
