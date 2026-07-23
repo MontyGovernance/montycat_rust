@@ -286,12 +286,15 @@ println!("{:?}", parsed);
 - **Do I need OpenAI or an embedding API?** No. Embeddings run on-device in the `montycat-semantic` server. No API keys, no per-query bill, no data egress.
 - **Is it a Pinecone / Weaviate / Chroma / Qdrant alternative?** Yes — self-hosted and open-source, with a NoSQL store built in.
 - **Which async runtime?** Tokio. Works with Axum, Actix, Warp, and any Tokio-based stack.
+
 ## Data mesh governance
 
 Owners can inspect their effective policy and superowners can grant delegated
 keyspace authority programmatically:
 
 ```rust,ignore
+use montycat::{PolicyCapability, PolicyKeyspaceType, SemanticModel};
+
 engine.policy_grant(
     "alice", PolicyCapability::ProvisionKeyspace, "catalog", None,
     &[PolicyKeyspaceType::InMemory, PolicyKeyspaceType::Persistent], &[SemanticModel::BgeSmall],
