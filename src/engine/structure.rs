@@ -1014,8 +1014,10 @@ impl Engine {
         if let Some(owner) = owner {
             command.extend(["owner".into(), owner.into()]);
         }
-        if let Some(keyspace) = keyspace {
-            command.extend(["keyspace".into(), keyspace.into()]);
+        if capability != PolicyCapability::ProvisionKeyspace {
+            if let Some(keyspace) = keyspace {
+                command.extend(["keyspace".into(), keyspace.into()]);
+            }
         }
         if let Some(kind) = keyspace_type {
             command.extend(["type".into(), kind.as_str().into()]);
@@ -1045,8 +1047,10 @@ impl Engine {
             "store".into(),
             store.into(),
         ];
-        if let Some(keyspace) = keyspace {
-            command.extend(["keyspace".into(), keyspace.into()]);
+        if capability != PolicyCapability::ProvisionKeyspace {
+            if let Some(keyspace) = keyspace {
+                command.extend(["keyspace".into(), keyspace.into()]);
+            }
         }
         if !types.is_empty() {
             command.push("types".into());
