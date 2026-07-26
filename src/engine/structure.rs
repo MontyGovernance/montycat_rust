@@ -35,23 +35,79 @@ impl ValidPermissions {
 
 /// Capabilities that can be granted through data-mesh governance policies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PolicyCapability { ProvisionKeyspace, RemoveKeyspace, ManageSnapshots, ManageSemantic, ManageSchema, ManageAccess }
-impl PolicyCapability { pub const fn as_str(self) -> &'static str { match self { Self::ProvisionKeyspace => "provision-keyspace", Self::RemoveKeyspace => "remove-keyspace", Self::ManageSnapshots => "manage-snapshots", Self::ManageSemantic => "manage-semantic", Self::ManageSchema => "manage-schema", Self::ManageAccess => "manage-access" } } }
+pub enum PolicyCapability {
+    ProvisionKeyspace,
+    RemoveKeyspace,
+    ManageSnapshots,
+    ManageSemantic,
+    ManageSchema,
+    ManageAccess,
+}
+impl PolicyCapability {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ProvisionKeyspace => "provision-keyspace",
+            Self::RemoveKeyspace => "remove-keyspace",
+            Self::ManageSnapshots => "manage-snapshots",
+            Self::ManageSemantic => "manage-semantic",
+            Self::ManageSchema => "manage-schema",
+            Self::ManageAccess => "manage-access",
+        }
+    }
+}
 
 /// Keyspace storage types addressable by governance policies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PolicyKeyspaceType { InMemory, Persistent, Distributed }
-impl PolicyKeyspaceType { pub const fn as_str(self) -> &'static str { match self { Self::InMemory => "inmemory", Self::Persistent => "persistent", Self::Distributed => "distributed" } } }
+pub enum PolicyKeyspaceType {
+    InMemory,
+    Persistent,
+    Distributed,
+}
+impl PolicyKeyspaceType {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::InMemory => "inmemory",
+            Self::Persistent => "persistent",
+            Self::Distributed => "distributed",
+        }
+    }
+}
 
 /// Compiled embedding models supported by Montycat semantic search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SemanticModel { MiniLm, BgeSmall, BgeBase, E5Small }
-impl SemanticModel { pub const fn as_str(self) -> &'static str { match self { Self::MiniLm => "minilm", Self::BgeSmall => "bge-small", Self::BgeBase => "bge-base", Self::E5Small => "e5-small" } } }
+pub enum SemanticModel {
+    MiniLm,
+    BgeSmall,
+    BgeBase,
+    E5Small,
+}
+impl SemanticModel {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MiniLm => "minilm",
+            Self::BgeSmall => "bge-small",
+            Self::BgeBase => "bge-base",
+            Self::E5Small => "e5-small",
+        }
+    }
+}
 
 /// Serialization formats accepted by policy manifest commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PolicyFormat { Json, Yaml, Yml }
-impl PolicyFormat { pub const fn as_str(self) -> &'static str { match self { Self::Json => "json", Self::Yaml => "yaml", Self::Yml => "yml" } } }
+pub enum PolicyFormat {
+    Json,
+    Yaml,
+    Yml,
+}
+impl PolicyFormat {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Json => "json",
+            Self::Yaml => "yaml",
+            Self::Yml => "yml",
+        }
+    }
+}
 
 /// Represents the Montycat engine configuration and connection details.
 ///

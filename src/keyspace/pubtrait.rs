@@ -942,7 +942,7 @@ where
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let use_tls: bool = engine.use_tls;
-        let command: String = "update_value".to_string();
+        let command: String = "update_bulk".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             bulk_keys_values: bulk,

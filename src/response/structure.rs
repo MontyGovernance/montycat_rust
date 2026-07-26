@@ -439,4 +439,28 @@ mod tests {
         assert_eq!(response.payload[0].id, 1);
         assert_eq!(response.payload[1].name, "item2");
     }
+
+    #[test]
+    fn preserves_governance_denial_details() {
+        let error = "Governance permission denied: capability 'manage-schema' on store 'orders', keyspace 'events'";
+        let json = serde_json::json!({"status": false, "payload": null, "error": error});
+        let response: MontycatResponse<Option<serde_json::Value>> =
+            MontycatResponse::parse_response(Ok(Some(json.to_string().into_bytes()))).unwrap();
+        assert_eq!(response.error.as_deref(), Some(error));
+    }
+
+    #[test]
+    fn preserves_creator_revocations_in_policy_views() {
+        let json = serde_json::json!({
+            "status": true,
+            "payload": {"owned_keyspaces": [{"revoked_creator_capabilities": ["manage-schema"]}]},
+            "error": null,
+        });
+        let response: MontycatResponse<serde_json::Value> =
+            MontycatResponse::parse_response(Ok(Some(json.to_string().into_bytes()))).unwrap();
+        assert_eq!(
+            response.payload["owned_keyspaces"][0]["revoked_creator_capabilities"][0],
+            "manage-schema"
+        );
+    }
 }
