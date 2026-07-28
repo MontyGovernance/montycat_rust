@@ -1,7 +1,8 @@
 use crate::MontycatClientError;
 #[cfg(feature = "tls")]
 use rustls_pki_types::ServerName;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::watch::Receiver;
@@ -30,10 +31,9 @@ const CHUNK_SIZE: usize = 1024 * 256;
 ///   Splits the connection into a reader and writer.
 ///
 pub(crate) enum Connection {
-    #[cfg(not(feature = "tls"))]
     Plain(TcpStream),
     #[cfg(feature = "tls")]
-    Tls(TlsStream<TcpStream>),
+    Tls(Box<TlsStream<TcpStream>>),
 }
 
 impl Connection {
@@ -52,7 +52,6 @@ impl Connection {
         Box<dyn AsyncWrite + Unpin + Send>,
     ) {
         match self {
-            #[cfg(not(feature = "tls"))]
             Connection::Plain(stream) => {
                 let (r, w) = tokio::io::split(stream);
                 (Box::new(r), Box::new(w))
@@ -98,10 +97,7 @@ pub(crate) async fn send_data(
     let plain_stream: TcpStream = TcpStream::connect((host.as_ref(), port))
         .await
         .map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
-    #[cfg(feature = "tls")]
-    let mut tls_stream: Option<tokio_rustls::client::TlsStream<TcpStream>> = None;
-
-    if use_tls {
+    let connection = if use_tls {
         #[cfg(feature = "tls")]
         {
             let mut root_cert_store = RootCertStore::empty();
@@ -115,13 +111,13 @@ pub(crate) async fn send_data(
             let server_name = ServerName::try_from(host)
                 .map_err(|e| MontycatClientError::ClientEngineError(e.to_string()))?;
 
-            match timeout(
+            let tls_stream = match timeout(
                 Duration::from_secs(10),
                 connector.connect(server_name, plain_stream),
             )
             .await
             {
-                Ok(Ok(stream)) => tls_stream = Some(stream),
+                Ok(Ok(stream)) => stream,
                 Ok(Err(e)) => {
                     return Err(MontycatClientError::ClientEngineError(format!(
                         "TLS handshake failed: {}",
@@ -134,6 +130,7 @@ pub(crate) async fn send_data(
                     ));
                 }
             };
+            Connection::Tls(Box::new(tls_stream))
         }
 
         #[cfg(not(feature = "tls"))]
@@ -142,19 +139,9 @@ pub(crate) async fn send_data(
                 "TLS feature not enabled".to_string(),
             ));
         }
-    }
-
-    #[cfg(feature = "tls")]
-    let connection = if let Some(tls) = tls_stream {
-        Connection::Tls(tls)
     } else {
-        return Err(MontycatClientError::ClientEngineError(
-            "TLS stream not initialized".to_string(),
-        ));
+        Connection::Plain(plain_stream)
     };
-
-    #[cfg(not(feature = "tls"))]
-    let connection = Connection::Plain(plain_stream);
 
     let (mut reader, mut writer) = connection.split();
 

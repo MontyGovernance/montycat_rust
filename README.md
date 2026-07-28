@@ -223,7 +223,7 @@ println!("{:?}", parsed);
 
 // Control the DB-wide switch (optional — it's already on):
 // switch the embedding model: "minilm" | "bge-small" (default) | "bge-base" | "e5-small"
-engine.enable_semantic_search(Some("bge-base"), None, None).await;
+engine.enable_semantic_search(Some(SemanticModel::BgeBase), None, None).await;
 ```
 
 ### Hybrid semantic search
@@ -286,3 +286,43 @@ println!("{:?}", parsed);
 - **Do I need OpenAI or an embedding API?** No. Embeddings run on-device in the `montycat-semantic` server. No API keys, no per-query bill, no data egress.
 - **Is it a Pinecone / Weaviate / Chroma / Qdrant alternative?** Yes — self-hosted and open-source, with a NoSQL store built in.
 - **Which async runtime?** Tokio. Works with Axum, Actix, Warp, and any Tokio-based stack.
+
+## Data-mesh governance for shared and multi-tenant deployments
+
+Delegate administration without giving every team full server control. Policies scope
+authority to an owner and store, with optional keyspace, storage-type, and semantic-model
+constraints. Platform teams can govern shared infrastructure while domain teams operate
+the data products they own.
+
+- Grant, revoke, or explicitly deny keyspace provisioning/removal, schema, semantic,
+  snapshot, and access-management capabilities.
+- Inspect effective permissions and policy history, or preview a grant/revoke before
+  applying it.
+- Validate, plan, apply, and export JSON or YAML policy manifests for repeatable
+  infrastructure-as-code workflows.
+- Constrain storage types for provisioning, removal, schema, access, and semantic
+  management. Snapshot management is always in-memory, so it takes no storage-type
+  qualifier.
+- Constrain semantic models during keyspace provisioning and semantic management.
+
+For example, a superowner can restrict what Alice may provision and separately delegate
+semantic management for one keyspace:
+
+```rust,ignore
+use montycat::{PolicyCapability, PolicyKeyspaceType, SemanticModel};
+
+engine.policy_grant(
+    "alice", PolicyCapability::ProvisionKeyspace, "catalog", None,
+    &[PolicyKeyspaceType::InMemory, PolicyKeyspaceType::Persistent], &[SemanticModel::BgeSmall],
+).await?;
+engine.policy_grant(
+    "alice", PolicyCapability::ManageSemantic, "catalog", Some("products"),
+    &[PolicyKeyspaceType::InMemory], &[SemanticModel::BgeSmall],
+).await?;
+engine.policy_view(Some("alice"), Some("catalog")).await?;
+```
+
+Use `policy_explain` to inspect an authorization decision and `policy_history` to audit
+changes. Superowners can manage policies directly with `policy_grant`, `policy_revoke`,
+`policy_deny`, and `policy_remove_denial`, or use `policy_validate`, `policy_plan`,
+`policy_apply`, and `policy_export` with JSON or YAML documents.

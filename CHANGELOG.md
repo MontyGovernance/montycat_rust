@@ -5,9 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-07-28
+
+### Changed
+- Governance qualifiers are validated client-side before sending a command:
+  - semantic models apply to `ProvisionKeyspace` and `ManageSemantic`
+  - storage types apply to `ProvisionKeyspace`, `RemoveKeyspace`, `ManageSchema`,
+    `ManageAccess`, and `ManageSemantic`; `ManageSnapshots` is always in-memory
+- `ProvisionKeyspace` is treated as a store-level capability, so its policy commands
+  omit `keyspace`.
 
 ### Added
+- Data-mesh governance policy APIs on `Engine`:
+  - inspection: `policy_view`, `policy_history`, `policy_explain`, `policy_export`
+  - mutation: `policy_grant`, `policy_revoke`, `policy_deny`, `policy_remove_denial`
+  - dry runs: `policy_preview_grant`, `policy_preview_revoke`
+  - manifests: `policy_validate`, `policy_plan`, `policy_apply`
+- `PolicyCapability`, `PolicyKeyspaceType`, `SemanticModel`, and `PolicyFormat`,
+  exported from the crate root.
+- Keyspace-scoped semantic enrollment and removal through
+  `enable_semantic_search_for_keyspace` and `disable_semantic_search_for_keyspace`.
 - Hybrid semantic search through `semantic_search_get_keys_where` and
   `semantic_search_get_values_where`.
 - Metadata criteria use the same shape as `lookup_keys_where` and act as a
