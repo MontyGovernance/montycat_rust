@@ -1060,6 +1060,7 @@ impl Engine {
         keyspace_type: Option<PolicyKeyspaceType>,
         model: Option<SemanticModel>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        Self::validate_policy_qualifiers(capability, keyspace_type.is_some(), model.is_some())?;
         let mut command = vec![
             "policy-explain".into(),
             "capability".into(),
@@ -1070,10 +1071,10 @@ impl Engine {
         if let Some(owner) = owner {
             command.extend(["owner".into(), owner.into()]);
         }
-        if capability != PolicyCapability::ProvisionKeyspace {
-            if let Some(keyspace) = keyspace {
-                command.extend(["keyspace".into(), keyspace.into()]);
-            }
+        if capability != PolicyCapability::ProvisionKeyspace
+            && let Some(keyspace) = keyspace
+        {
+            command.extend(["keyspace".into(), keyspace.into()]);
         }
         if let Some(kind) = keyspace_type {
             command.extend(["type".into(), kind.as_str().into()]);
@@ -1084,6 +1085,7 @@ impl Engine {
         self.execute_governance_command(command).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn policy_mutation(
         &self,
         operation: &str,
@@ -1094,6 +1096,7 @@ impl Engine {
         types: &[PolicyKeyspaceType],
         models: &[SemanticModel],
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        Self::validate_policy_qualifiers(capability, !types.is_empty(), !models.is_empty())?;
         let mut command = vec![
             operation.into(),
             "owner".into(),
@@ -1103,10 +1106,10 @@ impl Engine {
             "store".into(),
             store.into(),
         ];
-        if capability != PolicyCapability::ProvisionKeyspace {
-            if let Some(keyspace) = keyspace {
-                command.extend(["keyspace".into(), keyspace.into()]);
-            }
+        if capability != PolicyCapability::ProvisionKeyspace
+            && let Some(keyspace) = keyspace
+        {
+            command.extend(["keyspace".into(), keyspace.into()]);
         }
         if !types.is_empty() {
             command.push("types".into());
@@ -1117,6 +1120,28 @@ impl Engine {
             command.extend(models.iter().map(|value| value.as_str().into()));
         }
         self.execute_governance_command(command).await
+    }
+
+    fn validate_policy_qualifiers(
+        capability: PolicyCapability,
+        has_types: bool,
+        has_models: bool,
+    ) -> Result<(), MontycatClientError> {
+        if has_types && capability == PolicyCapability::ManageSnapshots {
+            return Err(MontycatClientError::ClientGenericError(
+                "types is not valid for manage-snapshots policies; snapshots are always in-memory"
+                    .into(),
+            ));
+        }
+        if has_models
+            && capability != PolicyCapability::ProvisionKeyspace
+            && capability != PolicyCapability::ManageSemantic
+        {
+            return Err(MontycatClientError::ClientGenericError(
+                "models is only valid for provision-keyspace or manage-semantic policies".into(),
+            ));
+        }
+        Ok(())
     }
 
     pub async fn policy_grant(
@@ -1375,6 +1400,42 @@ mod tests {
         assert_eq!(engine.username, "user");
         assert_eq!(engine.password, "pass");
         assert_eq!(engine.store, None);
+    }
+
+    #[test]
+    fn test_policy_qualifiers_match_their_capabilities() {
+        assert!(
+            Engine::validate_policy_qualifiers(PolicyCapability::ProvisionKeyspace, true, false,)
+                .is_ok()
+        );
+        assert!(
+            Engine::validate_policy_qualifiers(PolicyCapability::ManageSemantic, false, true,)
+                .is_ok()
+        );
+        assert!(
+            Engine::validate_policy_qualifiers(PolicyCapability::ProvisionKeyspace, false, true,)
+                .is_ok()
+        );
+        assert!(
+            Engine::validate_policy_qualifiers(PolicyCapability::ManageSchema, true, false,)
+                .is_ok()
+        );
+
+        let model_error =
+            Engine::validate_policy_qualifiers(PolicyCapability::ManageSchema, false, true)
+                .unwrap_err();
+        assert_eq!(
+            model_error.message(),
+            "models is only valid for provision-keyspace or manage-semantic policies"
+        );
+
+        let type_error =
+            Engine::validate_policy_qualifiers(PolicyCapability::ManageSnapshots, true, false)
+                .unwrap_err();
+        assert_eq!(
+            type_error.message(),
+            "types is not valid for manage-snapshots policies; snapshots are always in-memory"
+        );
     }
 
     #[test]
