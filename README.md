@@ -38,8 +38,6 @@ Think of it as an **open-source, self-hosted alternative to Pinecone, Weaviate, 
 - Montycat isn’t a database “inspired by Rust.”
 - Montycat is Rust — in database form.
 
-## `For installation of the Montycat Engine, see 👉 https://montygovernance.com`
-
 ## ⚡ Montycat Rust Client
 
 - The Montycat Rust Client is the official, fully asynchronous interface to the Montycat engine. It’s built for developers who value performance and beauty in equal measure — offering the cleanest API, lowest latency, and strongest safety guarantees in the industry. If you’ve ever struggled with clunky, unsafe, or inconsistent database clients, welcome home. Montycat is the only database client that looks and feels like Rust — not like a wrapper around legacy code.
@@ -92,7 +90,7 @@ Add the client to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-montycat = "0.2"
+montycat = "0.3"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -101,7 +99,7 @@ serde_json = "1"
 With TLS:
 
 ```toml
-montycat = { version = "0.2", features = ["tls"] }
+montycat = { version = "0.3", features = ["tls"] }
 ```
 
 ## Quick Start
@@ -202,7 +200,7 @@ items by *meaning* using on-device vector embeddings — no external API, no ext
 no separate vector database. It's ON by default in the semantic edition, so just search.
 
 ```rust
-use montycat::{Keyspace, Limit, MontycatResponse};
+use montycat::{Keyspace, Limit, MontycatResponse, SemanticModel};
 
 // (reuses the `engine` and `persistent` keyspace from the Quick Start above)
 
@@ -249,6 +247,119 @@ let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(filtered
 println!("{:?}", parsed);
 ```
 
+## 📨 Response Shape
+
+Commands return `Result<Option<Vec<u8>>, MontycatClientError>` — raw bytes off the wire.
+`MontycatResponse::parse_response` turns them into a typed envelope, so you pick the
+payload type at the call site instead of hand-rolling `serde_json`:
+
+```rust,ignore
+use montycat::MontycatResponse;
+
+// { "status": true,  "payload": <result>, "error": null }
+// { "status": false, "payload": null,     "error": "Governance permission denied: ..." }
+
+let raw = persistent.insert_value(None, employee, None).await;
+let parsed: MontycatResponse<Option<String>> = MontycatResponse::parse_response(raw)?;
+
+if parsed.status {
+    println!("new key: {:?}", parsed.payload);
+} else {
+    eprintln!("server rejected it: {:?}", parsed.error);
+}
+```
+
+`parse_response` also unwraps payloads the server double-encodes as JSON strings, so a
+nested document arrives as a real structure. **Keys are u128 and travel as strings** —
+deserialize them into `String`, not an integer type. Client-side mistakes surface as
+`MontycatClientError` before anything is sent; server-side failures arrive with
+`status: false` and a populated `error`.
+
+## 📡 Real-Time Subscriptions
+
+Subscribe to one key or to a whole keyspace and get pushed every change — the reactive
+core behind live dashboards and event-driven Tokio services.
+
+```rust,ignore
+use montycat::{Keyspace, MontycatStreamResponse};
+use std::sync::Arc;
+
+// Whole keyspace: pass None for both key and custom_key.
+let stop = persistent
+    .subscribe(
+        None, // subscription port; None => engine port + 1
+        None,
+        None,
+        Arc::new(|bytes: &mut [u8]| {
+            let event = MontycatStreamResponse::<serde_json::Value>::parse_response(bytes);
+            println!("changed: {:?}", event);
+        }),
+    )
+    .await?;
+
+// Stop the stream. Passing key and custom_key together returns
+// MontycatClientError::ClientSelectedBothKeyAndCustomKey instead of subscribing.
+let _ = stop.send(true);
+```
+
+`subscribe` spawns the listener on Tokio and hands back a `tokio::sync::watch::Sender<bool>`;
+sending `true` ends it. The callback is an `Arc<dyn Fn(&mut [u8]) + Send + Sync>` receiving
+each frame as raw bytes — parse it with `MontycatStreamResponse::parse_response`, which
+carries an extra `message` field alongside the usual `status` / `payload` / `error`.
+Subscriptions use the **subscription port**, `engine.port + 1` by default — that is the
+second port (`21211`) published in the Docker command above.
+
+## 🔐 TLS
+
+TLS is behind a feature flag, so the dependency tree stays lean when you do not need it:
+
+```toml
+montycat = { version = "0.3", features = ["tls"] }
+```
+
+```rust,ignore
+let mut engine = Engine::from_uri("montycat://USER:PASS@127.0.0.1:21210/mystore")?;
+engine.enable_tls();
+```
+
+`Engine::new(..)` takes the same switch as its final `use_tls` argument. It applies to
+commands and subscriptions alike.
+
+> **Note.** The client accepts self-signed certificates, which is convenient for local
+> and internal deployments but means the server identity is not verified. Terminate TLS
+> at a trusted proxy if you need certificate validation.
+
+## 👥 Owners & Access
+
+Governance policies below are written against *owners*, so create them first. A
+superowner provisions an owner, then grants data access — optionally narrowed to
+specific keyspaces:
+
+```rust,ignore
+use montycat::ValidPermissions;
+
+engine.create_owner("alice", "alice-password").await?;
+
+// store: None falls back to the engine's store.
+engine.grant_to("alice", ValidPermissions::Read, None, None).await?;
+engine
+    .grant_to("alice", ValidPermissions::Write, None, Some(vec!["employees"]))
+    .await?;
+
+engine.list_owners().await?;
+
+engine
+    .revoke_from("alice", ValidPermissions::Write, None, Some(vec!["employees"]))
+    .await?;
+engine.remove_owner("alice").await?;
+```
+
+`ValidPermissions` is `Read`, `Write`, or `All`. This governs **data access**; to
+delegate *administrative* capabilities such as provisioning keyspaces or managing
+schemas, see
+[Data-mesh governance](#data-mesh-governance-for-shared-and-multi-tenant-deployments) at
+the end of this document.
+
 ## Want more?
 
 ### 🧩 The Montycat Architecture
@@ -279,6 +390,7 @@ println!("{:?}", parsed);
 - 📚 **docs.rs** — https://docs.rs/montycat
 - 🐳 **Docker Hub** — https://hub.docker.com/r/montygovernance/montycat
 - 💻 **Source** — https://github.com/MontyGovernance/montycat_rust
+- 📝 **Changelog** — [CHANGELOG.md](CHANGELOG.md)
 
 ## ❓ FAQ
 

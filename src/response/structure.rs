@@ -463,4 +463,54 @@ mod tests {
             "manage-schema"
         );
     }
+
+    /// Keys are u128 on the server and travel as JSON strings. Round-tripping the
+    /// payload through `simd_json` and back must not coerce them into numbers or
+    /// truncate them to f64 precision.
+    #[test]
+    fn preserves_u128_keys_as_strings() {
+        const KEY: &str = "340282366920938463463374607431768211455";
+        let json = serde_json::json!({
+            "status": true,
+            "payload": [{"__key__": KEY, "__score__": 0.78}],
+            "error": null,
+        });
+
+        let response: MontycatResponse<serde_json::Value> =
+            MontycatResponse::parse_response(Ok(Some(json.to_string().into_bytes()))).unwrap();
+
+        assert_eq!(response.payload[0]["__key__"], KEY);
+        assert!(response.payload[0]["__key__"].is_string());
+    }
+
+    /// The same guarantee has to survive the nested-JSON-string unwrapping the
+    /// parser applies to payloads the server double-encodes.
+    #[test]
+    fn preserves_u128_keys_inside_nested_json_payloads() {
+        const KEY: &str = "30442970696809394303186116932586352271";
+        let inner = format!(r#"[{{"__key__":"{}"}}]"#, KEY);
+        let json = serde_json::json!({"status": true, "payload": inner, "error": null});
+
+        let response: MontycatResponse<serde_json::Value> =
+            MontycatResponse::parse_response(Ok(Some(json.to_string().into_bytes()))).unwrap();
+
+        assert_eq!(response.payload[0]["__key__"], KEY);
+        assert!(response.payload[0]["__key__"].is_string());
+    }
+
+    /// A well-formed envelope whose payload does not fit `T` is a parsing error,
+    /// not a panic and not a silently defaulted value.
+    #[test]
+    fn rejects_payload_that_does_not_match_the_requested_type() {
+        let json_str =
+            r#"{"status":true,"payload":{"id":"not-a-number","name":"test"},"error":null}"#;
+
+        let result: Result<MontycatResponse<TestStruct>, MontycatClientError> =
+            MontycatResponse::parse_response(Ok(Some(json_str.as_bytes().to_vec())));
+
+        assert!(matches!(
+            result,
+            Err(MontycatClientError::ClientValueParsingError(_))
+        ));
+    }
 }
