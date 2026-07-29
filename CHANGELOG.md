@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-07-29
+
+Documentation and tests only — no library code changed, so upgrading from 0.3.0
+is optional.
+
+### Added
+
+- README sections for behavior that was previously undocumented: response shape
+  and `MontycatResponse::parse_response`, real-time subscriptions returning a
+  `tokio::sync::watch::Sender<bool>` on the `port + 1` subscription port, TLS via
+  the `tls` feature and `enable_tls`, and owner/access management with
+  `create_owner`, `grant_to`, `revoke_from`, and `ValidPermissions`.
+- Tests covering u128 key preservation through `parse_response`, both directly
+  and inside double-encoded JSON payloads, and payload/type mismatches returning
+  `ClientValueParsingError` rather than panicking.
+- Changelog link in the README.
+
+### Fixed
+
+- The README pinned `montycat = "0.2"` in both dependency snippets, a version
+  that predates the governance APIs documented further down the same file.
+- The README semantic-search example used `SemanticModel::BgeBase` without
+  importing `SemanticModel`.
+- Removed a leftover installation heading that duplicated the "Get the Engine"
+  section.
+
 ## [0.3.0] - 2026-07-28
 
 ### Changed
