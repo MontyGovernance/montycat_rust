@@ -156,7 +156,11 @@ pub(crate) async fn send_data(
 
     let mut buf = vec![];
 
-    let is_subscription = query.windows(9).any(|w| w == b"subscribe");
+    // A subscription is the call that supplies a callback — never inferred from
+    // the payload. Scanning the request for "subscribe" misread any record whose
+    // value merely contained that word, routing it into the streaming branch
+    // below, which has no read timeout and therefore hung forever.
+    let is_subscription = callback.is_some();
 
     if is_subscription {
         loop {

@@ -1,13 +1,16 @@
 [package]
 name = "montycat"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 
 authors = ["MontyGovernance"]
 description = "Self-hosted vector database + NoSQL with built-in AI semantic search — the async Rust client for Montycat. A self-hosted Pinecone / Weaviate / Chroma alternative for RAG, AI agents & LLM memory."
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-exclude = ["tests/**"]
+# Repo-only files. Patterns are gitignore-style, so any future *_PLAN.md is
+# excluded without another edit — three of the four clients would otherwise
+# publish new root-level markdown silently.
+exclude = ["tests/**", "NOTES.md", "*_PLAN.md", ".github/**", ".gitignore"]
 
 documentation = "https://docs.rs/montycat"
 homepage = "https://montygovernance.com"

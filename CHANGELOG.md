@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-07-29
+
+Fixes a hang that affects any request whose payload contains the word
+`subscribe`. **Upgrade from 0.3.1 is recommended.**
+
+### Fixed
+
+- **A request whose value contained the substring `subscribe` never returned.**
+  Subscription mode was detected by scanning the serialized request for
+  `b"subscribe"`, so a call like
+  `insert_value(None, json!({"note": "please subscribe"}))` was routed into the
+  streaming branch — which has no read timeout and loops forever. Any record
+  mentioning the word was affected, `unsubscribe` included.
+
+  A request is now a subscription because the caller supplied a callback. That
+  was always the real distinction: exactly one call site in the crate passes
+  one. Intent is no longer inferred from user data.
+
+  Present in every release before this one. The Python and Dart clients carry
+  the same defect and are fixed in their matching releases; the Node client was
+  already correct.
+
 ## [0.3.1] - 2026-07-29
 
 Documentation and tests only — no library code changed, so upgrading from 0.3.0
