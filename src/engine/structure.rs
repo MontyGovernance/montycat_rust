@@ -472,8 +472,8 @@ impl Engine {
     ///
     /// # Arguments
     /// * `drop_vectors` - If true, also clear stored vectors — every keyspace's
-    ///   DB-wide, or the scoped store's when `store` is set. Required before
-    ///   switching to a different embedding model.
+    ///   DB-wide, or the scoped store's when `store` is set. Use
+    ///   `reembed_semantic_search` for model replacement.
     /// * `store` - Restrict the disable to this store only. None disables DB-wide.
     ///
     /// # Examples
@@ -985,6 +985,53 @@ impl Engine {
         if let Some(model) = model {
             command.extend(["model".into(), model.as_str().into()]);
         }
+        if let Some(field) = field {
+            command.extend(["field".into(), field.into()]);
+        }
+        command.extend([
+            "store".into(),
+            store.into(),
+            "keyspace".into(),
+            keyspace.into(),
+        ]);
+        self.execute_governance_command(command).await
+    }
+
+    /// Return the actual global and per-keyspace semantic configuration.
+    pub async fn get_semantic_status(
+        &self,
+        store: Option<&str>,
+        keyspace: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        if keyspace.is_some() && store.is_none() {
+            return Err(MontycatClientError::ClientGenericError(
+                "a store is required when keyspace is specified".into(),
+            ));
+        }
+        let mut command = vec!["get-semantic-status".into()];
+        if let Some(store) = store {
+            command.extend(["store".into(), store.into()]);
+        }
+        if let Some(keyspace) = keyspace {
+            command.extend(["keyspace".into(), keyspace.into()]);
+        }
+        self.execute_governance_command(command).await
+    }
+
+    /// Atomically drop a keyspace's old vectors, replace its semantic
+    /// configuration, and start a complete backfill.
+    pub async fn reembed_semantic_search(
+        &self,
+        store: &str,
+        keyspace: &str,
+        model: SemanticModel,
+        field: Option<&str>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let mut command = vec![
+            "reembed-semantic-search".into(),
+            "model".into(),
+            model.as_str().into(),
+        ];
         if let Some(field) = field {
             command.extend(["field".into(), field.into()]);
         }
