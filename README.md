@@ -220,8 +220,30 @@ let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(values);
 println!("{:?}", parsed);
 
 // Control the DB-wide switch (optional — it's already on):
-// switch the embedding model: "minilm" | "bge-small" (default) | "bge-base" | "e5-small"
-engine.enable_semantic_search(Some(SemanticModel::BgeBase), None, None).await;
+// Read back the model and backfill state actually assigned to a keyspace.
+engine
+    .get_semantic_status(Some("catalog"), Some("products"))
+    .await?;
+
+// Enable an unenrolled keyspace with an explicit model.
+engine
+    .enable_semantic_search_for_keyspace(
+        "catalog",
+        "products",
+        Some(SemanticModel::BgeBase),
+        None,
+    )
+    .await?;
+
+// Changing an enrolled keyspace is destructive and starts a full backfill.
+engine
+    .reembed_semantic_search(
+        "catalog",
+        "products",
+        SemanticModel::BgeBase,
+        None,
+    )
+    .await?;
 ```
 
 ### Hybrid semantic search
