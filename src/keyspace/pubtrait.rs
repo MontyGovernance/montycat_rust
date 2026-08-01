@@ -74,7 +74,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "remove-keyspace".into(),
@@ -89,15 +88,8 @@ where
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -181,7 +173,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_value".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -200,15 +191,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -279,7 +263,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "delete_key".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -296,15 +279,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -372,7 +348,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "list_all_depending_keys".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -388,15 +363,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -482,7 +450,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_bulk".to_string();
 
         let limit_map: HashMap<String, usize> = match &limit {
@@ -518,15 +485,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -581,7 +541,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "delete_bulk".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -598,15 +557,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -638,7 +590,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_len".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -653,15 +604,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -721,7 +665,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "enforce-schema".into(),
@@ -740,15 +683,8 @@ where
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -791,7 +727,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "remove-enforced-schema".into(),
@@ -808,15 +743,8 @@ where
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -848,7 +776,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "list_all_schemas_in_keyspace".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -863,15 +790,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -941,7 +861,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "update_bulk".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -958,15 +877,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1034,7 +946,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "lookup_keys".to_string();
 
         let filters_serialized: String = process_json_value(&search_criteria)?;
@@ -1067,15 +978,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1148,7 +1052,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "lookup_values".to_string();
 
         let filters_serialized: String = process_json_value(&search_criteria)?;
@@ -1184,15 +1087,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1240,7 +1136,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "semantic_search".to_string();
 
         let limit_map: HashMap<String, usize> = match limit {
@@ -1275,15 +1170,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1547,8 +1435,6 @@ where
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let persistent = self.get_persistent();
 
-        let use_tls = engine.use_tls;
-
         let key = {
             if key.is_some() && custom_key.is_some() {
                 return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
@@ -1566,15 +1452,16 @@ where
             &engine.password,
         )?;
 
-        let host = engine.host.clone();
+        // The spawned task outlives this scope, so it owns an `Engine` clone
+        // rather than borrowing. Subscriptions are never pooled (contract §5);
+        // the clone only carries connection parameters.
         tokio::spawn(async move {
             let _ = send_data(
-                &host,
-                port,
+                &engine,
                 request_bytes.as_slice(),
                 Some(callback),
                 Some(&mut stop_rx),
-                use_tls,
+                Some(port),
             )
             .await;
         });

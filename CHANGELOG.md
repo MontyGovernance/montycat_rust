@@ -5,13 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.3] - 2026-07-31
+## [0.4.0]
 
-Adds a way to read the server's real semantic configuration, and a safe way to
-change an enrolled keyspace's embedding model. Additive — upgrading from 0.3.2
-requires no code changes.
+Opt-in connection pooling, two semantic-configuration commands, and fixes to
+response framing and subscription frame delivery.
+
+Upgrading from 0.3.2 needs no code changes **unless** you construct `Engine`
+with a struct literal — see Breaking below. Runtime behavior is unchanged until
+you opt into pooling, with one exception: a subscription callback now fires once
+per frame rather than once per socket chunk.
+
+### ⚠️ Breaking
+
+- **`Engine` gained a private field, so struct-literal construction no longer
+  compiles.** Use the constructors:
+
+  ```rust
+  let engine = Engine { host: "…".into(), port: 21210, /* … */ };  // no longer compiles
+  let engine = Engine::new("…".into(), 21210, /* … */);            // use this
+  let engine = Engine::from_uri("montycat://user:pass@host:21210/store")?;
+  ```
+
+  The field holds an optional connection pool and is `#[serde(skip)]`, so
+  `Engine` stays serializable and a deserialized engine simply has no pool.
 
 ### Added
+
+- **Opt-in connection pooling.** Every request previously opened a TCP
+  connection, sent one request, read one response, and closed. Reusing a
+  connection measures **2.56x faster** on loopback against a debug engine
+  (161 µs → 63 µs per `list-owners`); the gap widens over a network, where the
+  handshake costs a full round trip before the query is sent, and widens again
+  with TLS.
+
+  ```rust
+  let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?
+      .with_pool(PoolConfig::default());   // the only new line
+
+  persistent.insert_value(None, employee, None).await;   // unchanged
+  ```
+
+  Disabled by default, so no existing deployment changes behavior on upgrade —
+  an idle pooled connection still holds one of the engine's connection permits,
+  so the bound is deliberately conservative (`max_idle: 8`, 30s idle timeout).
+  Subscriptions are never pooled. Reuse one `Engine` for the process lifetime:
+  cloning shares the pool, but constructing a fresh one per request builds a
+  fresh empty pool and amortises nothing. Call `Engine::close_pool()` before
+  exit so TLS connections close with `close_notify`.
+
+  Exported `PoolConfig` and `ConnectionPool` from the crate root.
 
 - `Engine::get_semantic_status(store, keyspace)` returns the server's actual
   semantic settings rather than what the caller assumed: the DB-wide switch and
@@ -21,6 +63,23 @@ requires no code changes.
   drops one keyspace's vectors, records the new configuration, and starts a
   complete backfill. It reports the previous model alongside the new one, so a
   caller can confirm what it replaced.
+
+### Fixed
+
+- **A subscription frame could be delivered concatenated with the next one, or
+  dropped entirely.** The subscription reader appended raw socket chunks and
+  invoked the callback with whatever had accumulated, then cleared the buffer.
+  When two frames arrived in a single chunk the callback received both as one
+  event; when a chunk ended mid-frame after a complete one, the partial frame
+  was discarded by the clear. Frames are now read one at a time and the callback
+  fires once per frame.
+
+- **Reading a response rescanned its whole buffer on every chunk.** The reader
+  tested `buf.contains(&b'\n')` after each 256 KiB read, making a large response
+  O(n²) in the number of chunks. Responses are now read with
+  `BufReader::read_until`, which is O(n) and stops at the frame boundary instead
+  of retaining bytes belonging to whatever comes next — a prerequisite for the
+  connection pooling in `CONNECTION_POOLING_PLAN.md`.
 
 ### Changed
 
@@ -32,7 +91,7 @@ requires no code changes.
   `reembed_semantic_search`, which does not leave the keyspace unsearchable in
   between.
 
-## [0.3.2] - 2026-07-29
+## [0.3.2]
 
 Fixes a hang that affects any request whose payload contains the word
 `subscribe`. **Upgrade from 0.3.1 is recommended.**
@@ -54,7 +113,7 @@ Fixes a hang that affects any request whose payload contains the word
   the same defect and are fixed in their matching releases; the Node client was
   already correct.
 
-## [0.3.1] - 2026-07-29
+## [0.3.1]
 
 Documentation and tests only — no library code changed, so upgrading from 0.3.0
 is optional.
@@ -80,7 +139,7 @@ is optional.
 - Removed a leftover installation heading that duplicated the "Get the Engine"
   section.
 
-## [0.3.0] - 2026-07-28
+## [0.3.0]
 
 ### Changed
 - Governance qualifiers are validated client-side before sending a command:
@@ -106,7 +165,7 @@ is optional.
   hard AND pre-filter for the vector search; ranking remains cosine similarity.
 - Optional `min_score` filtering for hybrid queries.
 
-## [0.2.1] - 2026-07-19
+## [0.2.1]
 
 ### ⚠️ Breaking
 - **Semantic search response shape**: each hit is now `{__key__, __score__, __value__}`
@@ -114,7 +173,7 @@ is optional.
   Aligns with the dunder envelope `lookup_values` returns with `key_included`. Wire-breaking
   for code that read the old `key`/`score`/`value` field names off the parsed payload.
 
-## [0.2.0] - 2026-07-10
+## [0.2.0]
 
 Semantic search, per-request/DB-wide index-wait control, and a batch of operator
 commands — plus a correctness fix to `insert_bulk`. Contains breaking changes to
@@ -161,6 +220,7 @@ every write/delete method signature (see below), hence the minor bump.
   still import those to name the field types.)
 
 ## [0.1.7]
+
 ### Fixed
 - **get_bulk API**: Corrected `StoreRequestClient` initialization where `volumes` and `latest_volume` fields were being ignored.
 - **get_bulk Validation**: Refactored strict validation logic to allow any valid combination of `volumes`, `latest_volume`, and `limit` as a group, while maintaining mutual exclusivity with direct key retrieval.
@@ -178,6 +238,7 @@ every write/delete method signature (see below), hence the minor bump.
 - **`get_keys` query parameter enforcement**: At least one of `volumes`, `latest_volume`, or a nonzero `limit` must be provided; omitting all three now returns a `ClientGenericError`.
 
 ## [0.1.6]
+
 ### Changed
 - **get_bulk Parameter Handling**: Improved `limit_map` generation to use inclusive reference borrowing and more robust error checking for start/stop bounds.
 

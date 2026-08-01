@@ -1,3 +1,4 @@
+use super::pool::{ConnectionPool, PoolConfig};
 use super::utils::send_data;
 use crate::{errors::MontycatClientError, request::structure::Req};
 use serde::{Deserialize, Serialize};
@@ -142,6 +143,14 @@ pub struct Engine {
     pub password: String,
     pub store: Option<String>,
     pub use_tls: bool,
+    /// Shared connection pool, or `None` for connect-per-request.
+    ///
+    /// `Arc` so every `get_engine()` clone shares one pool — keyspaces store the
+    /// engine by value, so without this each operation would pool separately.
+    /// `#[serde(skip)]` keeps `Engine` serializable; a deserialized engine has
+    /// no pool and behaves exactly as it did before pooling existed.
+    #[serde(skip)]
+    pub(crate) pool: Option<std::sync::Arc<ConnectionPool>>,
 }
 
 impl Engine {
@@ -185,7 +194,54 @@ impl Engine {
             password,
             store,
             use_tls,
+            pool: None,
         }
+    }
+
+    /// Enable connection pooling for request/response traffic on this engine.
+    ///
+    /// Pooling is opt-in: without this call the engine opens a connection per
+    /// request exactly as before. Subscriptions are never pooled.
+    ///
+    /// # Two things to get right
+    ///
+    /// - **Reuse one `Engine` for the process lifetime.** Cloning is cheap and
+    ///   shares the pool, so keyspaces built from it reuse connections. Building
+    ///   a fresh `Engine::from_uri(..).with_pool(..)` per request creates a fresh
+    ///   empty pool each time, so every request still pays a handshake and
+    ///   nothing is ever amortised.
+    /// - **Pooling is per-`Engine`, not global.** Two engines pointing at the
+    ///   same server keep separate pools.
+    ///
+    /// Call [`Engine::close_pool`] before exit in a long-lived process so TLS
+    /// connections are closed with `close_notify`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust, ignore
+    /// let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?
+    ///     .with_pool(PoolConfig::default());
+    /// ```
+    pub fn with_pool(mut self, config: PoolConfig) -> Self {
+        self.pool = Some(std::sync::Arc::new(ConnectionPool::new(config)));
+        self
+    }
+
+    /// Drain and close every idle pooled connection.
+    ///
+    /// A no-op when pooling is disabled. `Drop` cannot be async, so this is the
+    /// only way to shut connections down cleanly; without it a dropped
+    /// `TlsStream` closes abruptly and the server logs a TLS error per
+    /// connection.
+    pub async fn close_pool(&self) {
+        if let Some(pool) = &self.pool {
+            pool.close().await;
+        }
+    }
+
+    /// The pool backing this engine, if pooling is enabled. Diagnostic use.
+    pub fn pool(&self) -> Option<&std::sync::Arc<ConnectionPool>> {
+        self.pool.as_ref()
     }
 
     pub(crate) fn get_credentials(&self) -> Vec<String> {
@@ -301,15 +357,8 @@ impl Engine {
                 vec![self.username.clone(), self.password.clone()],
             );
 
-            let response: Option<Vec<u8>> = send_data(
-                &self.host,
-                self.port,
-                request.byte_down()?.as_slice(),
-                None,
-                None,
-                self.use_tls,
-            )
-            .await?;
+            let response: Option<Vec<u8>> =
+                send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
             Ok(response)
         } else {
@@ -338,15 +387,8 @@ impl Engine {
                 vec![self.username.clone(), self.password.clone()],
             );
 
-            let response: Option<Vec<u8>> = send_data(
-                &self.host,
-                self.port,
-                request.byte_down()?.as_slice(),
-                None,
-                None,
-                self.use_tls,
-            )
-            .await?;
+            let response: Option<Vec<u8>> =
+                send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
             Ok(response)
         } else {
@@ -378,15 +420,8 @@ impl Engine {
         let request: Req =
             Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -445,15 +480,8 @@ impl Engine {
         let request: Req =
             Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -502,15 +530,8 @@ impl Engine {
         let request: Req =
             Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -537,15 +558,8 @@ impl Engine {
             vec![self.username.clone(), self.password.clone()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -572,15 +586,8 @@ impl Engine {
             vec![self.username.clone(), self.password.clone()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -594,15 +601,8 @@ impl Engine {
         let request: Req =
             Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -704,15 +704,8 @@ impl Engine {
             vec![self.username.clone(), self.password.clone()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -750,15 +743,8 @@ impl Engine {
             vec![self.username.to_owned(), self.password.to_owned()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -790,15 +776,8 @@ impl Engine {
             vec![self.username.to_owned(), self.password.to_owned()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -866,15 +845,8 @@ impl Engine {
             vec![self.username.to_owned(), self.password.to_owned()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -942,15 +914,8 @@ impl Engine {
             vec![self.username.to_owned(), self.password.to_owned()],
         );
 
-        let response: Option<Vec<u8>> = send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(self, request.byte_down()?.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -961,15 +926,7 @@ impl Engine {
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let request =
             Req::new_raw_command(command, vec![self.username.clone(), self.password.clone()]);
-        send_data(
-            &self.host,
-            self.port,
-            request.byte_down()?.as_slice(),
-            None,
-            None,
-            self.use_tls,
-        )
-        .await
+        send_data(self, request.byte_down()?.as_slice(), None, None, None).await
     }
 
     /// Enable semantic management for one keyspace without changing the

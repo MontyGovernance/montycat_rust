@@ -297,6 +297,57 @@ deserialize them into `String`, not an integer type. Client-side mistakes surfac
 `MontycatClientError` before anything is sent; server-side failures arrive with
 `status: false` and a populated `error`.
 
+## 🔄 Connection Pooling
+
+By default every request opens a TCP connection, sends, reads one response, and closes.
+Reuse the connection instead and the handshake disappears — **2.56x faster** on loopback
+against a debug engine (161 µs → 63 µs per `list-owners`). That is the conservative
+figure: over a network the handshake costs a full round trip before the query is even
+sent, and TLS adds one or two more.
+
+Pooling is opt-in. Enabling it is one line, and no call site changes:
+
+```rust,ignore
+use montycat::{Engine, PoolConfig};
+
+let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?
+    .with_pool(PoolConfig::default());          // ← the only new line
+
+persistent.insert_value(None, employee, None).await;   // unchanged
+
+// Before exit, in a long-lived process:
+engine.close_pool().await;
+```
+
+Tune it if you need to:
+
+```rust,ignore
+use std::time::Duration;
+
+let engine = engine.with_pool(PoolConfig {
+    max_idle: 4,                              // default 8
+    idle_timeout: Duration::from_secs(15),    // default 30s
+});
+```
+
+**Reuse one `Engine` for the process lifetime.** Cloning is cheap and shares the pool, so
+keyspaces built from it reuse connections. Building a fresh
+`Engine::from_uri(..).with_pool(..)` per request creates a fresh *empty* pool every time —
+you still pay every handshake and nothing is ever amortised.
+
+**Pooling is per-`Engine`, not global.** Two engines pointing at the same server keep
+separate pools.
+
+**Call `close_pool()` before exit.** `Drop` cannot be async, so without it TLS connections
+close without `close_notify` and the server logs an error for each one.
+
+**Keep `max_idle` modest.** An idle pooled connection still holds one of the engine's
+connection permits. The defaults are deliberately small; raise them only after measuring
+with the `queue-depths` command under realistic load.
+
+Subscriptions are never pooled — they are long-lived, stream many responses to one
+request, and live on their own port.
+
 ## 📡 Real-Time Subscriptions
 
 Subscribe to one key or to a whole keyspace and get pushed every change — the reactive
