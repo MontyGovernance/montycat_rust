@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-07-31
+
+Adds a way to read the server's real semantic configuration, and a safe way to
+change an enrolled keyspace's embedding model. Additive — upgrading from 0.3.2
+requires no code changes.
+
+### Added
+
+- `Engine::get_semantic_status(store, keyspace)` returns the server's actual
+  semantic settings rather than what the caller assumed: the DB-wide switch and
+  default model, plus each enrolled keyspace's model, dimensions, field,
+  storage type, and whether a backfill is still pending.
+- `Engine::reembed_semantic_search(store, keyspace, model, field)` atomically
+  drops one keyspace's vectors, records the new configuration, and starts a
+  complete backfill. It reports the previous model alongside the new one, so a
+  caller can confirm what it replaced.
+
+### Changed
+
+- Documented that `enable_semantic_search` leaves an already-enrolled keyspace
+  alone. It was never a way to switch models; `reembed_semantic_search` is.
+  Behavior is unchanged — only the documentation was misleading.
+- Corrected the `disable_semantic_search` docs: `drop_vectors` is not "required
+  before switching to a different embedding model". Use
+  `reembed_semantic_search`, which does not leave the keyspace unsearchable in
+  between.
+
 ## [0.3.2] - 2026-07-29
 
 Fixes a hang that affects any request whose payload contains the word
