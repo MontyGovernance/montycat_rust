@@ -31,6 +31,23 @@ per frame rather than once per socket chunk.
 
 ### Added
 
+- **`MontycatClientError` now implements `Display` and `std::error::Error`.**
+  It previously derived only `Debug`, `Clone`, `Serialize`, and `Deserialize`,
+  so it did not compose with `?`, `Box<dyn Error>`, `anyhow`, or `thiserror`'s
+  `#[from]`. The usual shape of an `axum` or `tokio` `main` failed to compile:
+
+  ```rust
+  #[tokio::main]
+  async fn main() -> Result<(), Box<dyn std::error::Error>> {
+      let engine = Engine::from_uri("montycat://user:pass@host:21210/store")?;   // now compiles
+      // previously required: .map_err(|e| e.message())?  at every call site
+  }
+  ```
+
+  `Display` renders exactly what `message()` returns, so existing output is
+  unchanged. `source()` returns `None`: the variants carry rendered strings
+  rather than an underlying error value, so there is no cause to chain to.
+
 - **Opt-in connection pooling.** Every request previously opened a TCP
   connection, sent one request, read one response, and closed. Reusing a
   connection measures **2.56x faster** on loopback against a debug engine

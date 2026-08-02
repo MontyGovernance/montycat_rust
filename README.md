@@ -297,6 +297,17 @@ deserialize them into `String`, not an integer type. Client-side mistakes surfac
 `MontycatClientError` before anything is sent; server-side failures arrive with
 `status: false` and a populated `error`.
 
+`MontycatClientError` implements `Display` and `std::error::Error`, so it composes with
+`?`, `Box<dyn Error>`, `anyhow`, and `thiserror`'s `#[from]`:
+
+```rust,ignore
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?;
+    Ok(())
+}
+```
+
 ## 🔄 Connection Pooling
 
 By default every request opens a TCP connection, sends, reads one response, and closes.
