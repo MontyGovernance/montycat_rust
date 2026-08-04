@@ -409,9 +409,18 @@ engine.enable_tls();
 `Engine::new(..)` takes the same switch as its final `use_tls` argument. It applies to
 commands and subscriptions alike.
 
-> **Note.** The client accepts self-signed certificates, which is convenient for local
-> and internal deployments but means the server identity is not verified. Terminate TLS
-> at a trusted proxy if you need certificate validation.
+For a server with a publicly trusted certificate, enabling TLS is sufficient. For a
+private CA or a self-issued MontyCat certificate, explicitly add the PEM trust anchor:
+
+```rust,ignore
+let engine = Engine::from_uri("montycat://USER:PASS@montycat.internal:21210/mystore")?
+    .with_tls_ca_file("/etc/montycat/tls/ca.pem")?;
+```
+
+`with_tls_ca_file` is optional: it adds its certificates alongside the normal public
+WebPKI roots and enables TLS for that engine. Rustls still validates the certificate
+chain and the server hostname. The certificate must therefore contain the name or IP
+address that the client connects to as a Subject Alternative Name.
 
 ## 👥 Owners & Access
 

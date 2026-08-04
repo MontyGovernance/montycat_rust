@@ -189,6 +189,7 @@ async fn connect(engine: &Engine, port: u16) -> Result<Connection, MontycatClien
         {
             let mut root_cert_store = RootCertStore::empty();
             root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+            root_cert_store.add_parsable_certificates(engine.tls_root_certificates.iter().cloned());
 
             let config = ClientConfig::builder()
                 .with_root_certificates(root_cert_store)

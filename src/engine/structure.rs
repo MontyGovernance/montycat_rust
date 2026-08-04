@@ -2,6 +2,8 @@ use super::pool::{ConnectionPool, PoolConfig};
 use super::utils::send_data;
 use crate::{errors::MontycatClientError, request::structure::Req};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "tls")]
+use std::{fs::File, io::BufReader, path::Path};
 use url::Url;
 
 /// Valid permissions for granting or revoking access.
@@ -143,6 +145,11 @@ pub struct Engine {
     pub password: String,
     pub store: Option<String>,
     pub use_tls: bool,
+    /// Extra trust anchors supplied by the caller for a private CA or a
+    /// self-issued server certificate. Public WebPKI roots remain enabled.
+    #[cfg(feature = "tls")]
+    #[serde(skip)]
+    pub(crate) tls_root_certificates: Vec<rustls_pki_types::CertificateDer<'static>>,
     /// Shared connection pool, or `None` for connect-per-request.
     ///
     /// `Arc` so every `get_engine()` clone shares one pool — keyspaces store the
@@ -194,8 +201,56 @@ impl Engine {
             password,
             store,
             use_tls,
+            #[cfg(feature = "tls")]
+            tls_root_certificates: Vec::new(),
             pool: None,
         }
+    }
+
+    /// Trust certificates from a PEM file for this engine's TLS connections.
+    ///
+    /// The file may contain a private CA certificate or a self-issued server
+    /// certificate. Its certificates are added alongside the normal public
+    /// WebPKI roots; chain and hostname verification remain enabled.
+    ///
+    /// This method enables TLS. It is available only with the crate's `tls`
+    /// feature.
+    ///
+    /// ```rust,ignore
+    /// let engine = Engine::from_uri("montycat://user:pass@db.internal:21210/store")?
+    ///     .with_tls_ca_file("/etc/montycat/tls/ca.pem")?;
+    /// ```
+    #[cfg(feature = "tls")]
+    pub fn with_tls_ca_file<P: AsRef<Path>>(
+        mut self,
+        path: P,
+    ) -> Result<Self, MontycatClientError> {
+        let path = path.as_ref();
+        let file = File::open(path).map_err(|error| {
+            MontycatClientError::ClientEngineError(format!(
+                "could not open TLS CA file '{}': {error}",
+                path.display()
+            ))
+        })?;
+        let certificates = rustls_pemfile::certs(&mut BufReader::new(file))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| {
+                MontycatClientError::ClientEngineError(format!(
+                    "could not parse TLS CA file '{}': {error}",
+                    path.display()
+                ))
+            })?;
+
+        if certificates.is_empty() {
+            return Err(MontycatClientError::ClientEngineError(format!(
+                "TLS CA file '{}' contains no certificates",
+                path.display()
+            )));
+        }
+
+        self.tls_root_certificates.extend(certificates);
+        self.use_tls = true;
+        Ok(self)
     }
 
     /// Enable connection pooling for request/response traffic on this engine.
@@ -1535,6 +1590,24 @@ mod tests {
         assert!(!engine.use_tls);
         engine.enable_tls();
         assert!(engine.use_tls);
+    }
+
+    #[cfg(feature = "tls")]
+    #[test]
+    fn test_engine_with_tls_ca_file_reports_missing_file() {
+        let missing = std::env::temp_dir().join("montycat_missing_tls_ca.pem");
+        let error = Engine::new(
+            "localhost".to_string(),
+            21210,
+            "user".to_string(),
+            "pass".to_string(),
+            None,
+            false,
+        )
+        .with_tls_ca_file(&missing)
+        .unwrap_err();
+
+        assert!(error.message().contains("could not open TLS CA file"));
     }
 
     #[test]
