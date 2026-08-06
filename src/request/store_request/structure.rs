@@ -60,6 +60,17 @@ pub(crate) struct StoreRequestClient {
     /// wire is unchanged for every other command.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub semantic_filter: Option<String>,
+    /// Optional precomputed vector for a single write or semantic query.
+    /// Supplying it bypasses server-side embedding for that operation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantic_vector: Option<Vec<f32>>,
+    /// Existing item keys mapped to precomputed vectors. Used only by
+    /// `semantic_upsert_vectors`.
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
+    pub semantic_vectors: HashMap<String, Vec<f32>>,
+    /// Precomputed vectors paired by position with the values in a bulk insert.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub semantic_vector_list: Vec<Vec<f32>>,
     /// Per-request override for synchronous index waiting on persistent writes.
     /// `Some(true)` → the write returns only after its indexes update
     /// (read-your-writes); `Some(false)` → fire-and-forget; `None` → use the
@@ -67,4 +78,47 @@ pub(crate) struct StoreRequestClient {
     /// callers that don't set it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wait_for_index: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StoreRequestClient;
+    use std::collections::HashMap;
+
+    #[test]
+    fn omits_empty_semantic_vector_fields() {
+        let value = serde_json::to_value(StoreRequestClient::default()).unwrap();
+
+        assert!(value.get("semantic_vector").is_none());
+        assert!(value.get("semantic_vectors").is_none());
+        assert!(value.get("semantic_vector_list").is_none());
+    }
+
+    #[test]
+    fn serializes_precomputed_vectors_on_the_wire() {
+        let mut semantic_vectors = HashMap::new();
+        semantic_vectors.insert("42".to_owned(), vec![0.1, 0.2]);
+        let request = StoreRequestClient {
+            semantic_vector: Some(vec![0.3, 0.4]),
+            semantic_vectors,
+            semantic_vector_list: vec![vec![0.5, 0.6]],
+            ..Default::default()
+        };
+
+        let value = serde_json::to_value(request).unwrap();
+
+        assert_eq!(
+            serde_json::from_value::<Vec<f32>>(value["semantic_vector"].clone()).unwrap(),
+            vec![0.3, 0.4]
+        );
+        assert_eq!(
+            serde_json::from_value::<HashMap<String, Vec<f32>>>(value["semantic_vectors"].clone())
+                .unwrap(),
+            HashMap::from([("42".to_owned(), vec![0.1, 0.2])])
+        );
+        assert_eq!(
+            serde_json::from_value::<Vec<Vec<f32>>>(value["semantic_vector_list"].clone()).unwrap(),
+            vec![vec![0.5, 0.6]]
+        );
+    }
 }
