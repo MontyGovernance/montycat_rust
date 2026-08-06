@@ -29,7 +29,48 @@ per frame rather than once per socket chunk.
   The field holds an optional connection pool and is `#[serde(skip)]`, so
   `Engine` stays serializable and a deserialized engine simply has no pool.
 
+- **Write and semantic-search methods gained a vector parameter, so every call
+  site needs one more argument.** Rust has no default arguments, so unlike the
+  Dart, Python, and Node clients — where the equivalent parameter is optional
+  and named — this does not compile until updated. Pass `None` to keep today's
+  behavior:
+
+  ```rust
+  keyspace.insert_value(None, value, None, None).await?;          // no longer compiles
+  keyspace.insert_value(None, value, None, None, None).await?;    // vector: None
+  ```
+
+  Affected: `insert_value`, `insert_value_no_schema`, `update_value`,
+  `insert_bulk`, and `insert_bulk_no_schema` on both `KeyspaceInMemory` and
+  `KeyspacePersistent`, gaining `vector: Option<Vec<f32>>` or
+  `vectors: Option<Vec<Vec<f32>>>` after `value` / `bulk_values`;
+  `update_bulk`, gaining `vectors` and `custom_vectors`; and the four
+  `semantic_search_*` methods, gaining `vector: Option<Vec<f32>>` after `query`.
+
+  The mechanical fix is one `None` per call site — the compiler lists every one.
+
 ### Added
+
+- **Precomputed vectors.** Vectors produced elsewhere — another model, a batch
+  pipeline, an existing embedding store — can now be supplied directly, and the
+  server skips embedding entirely. Requires a Montycat Semantic server 1.3.0 or
+  newer. See Breaking above for the call-site impact.
+
+  ```rust
+  // Writing: the vector is applied after the write succeeds.
+  keyspace.insert_value(None, doc, Some(my_embedding), None, None).await?;
+
+  // Bulk: paired with bulk_values by position.
+  keyspace.insert_bulk(docs, Some(vec![emb1, emb2]), None, None).await?;
+
+  // Searching: a query vector bypasses text embedding; query may be empty.
+  keyspace.semantic_search_get_values("", Some(my_query_embedding), /* … */).await?;
+  ```
+
+  Dimensions must match the keyspace's enrolled model; the server validates
+  before anything reaches the index. A supplied vector is not overwritten by
+  background embedding — a later ordinary write to the same item clears that
+  protection and re-embeds from text.
 
 - **`MontycatClientError` now implements `Display` and `std::error::Error`.**
   It previously derived only `Debug`, `Clone`, `Serialize`, and `Deserialize`,
