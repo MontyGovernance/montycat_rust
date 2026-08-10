@@ -136,7 +136,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "create-keyspace".into(),
@@ -157,15 +156,8 @@ impl PersistentKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -205,7 +197,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "update-cache-compression".into(),
@@ -222,15 +213,8 @@ impl PersistentKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -239,7 +223,10 @@ impl PersistentKeyspace {
     ///
     /// # Arguments
     ///
+    /// * `custom_key` - Optional custom key for the inserted value.
     /// * `value` - The value to be inserted into the keyspace. It must implement `Serialize` and `MontycatSchema`.
+    /// * `vector` - Optional precomputed vector that bypasses server-side embedding.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -249,7 +236,7 @@ impl PersistentKeyspace {
     ///
     /// ```rust, ignore,
     /// let value = YourType { /* fields */ };
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value(value).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value(None, value, None, None).await;
     /// let parsed = MontycatResponse::<YourType>::parse_response(res);
     /// ```
     ///
@@ -262,6 +249,7 @@ impl PersistentKeyspace {
         &self,
         custom_key: Option<String>,
         value: T,
+        vector: Option<Vec<f32>>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -276,7 +264,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let mut schema: Option<String> = None;
         let value_to_send: String = process_value(value)?;
 
@@ -308,19 +295,13 @@ impl PersistentKeyspace {
             command,
             key,
             wait_for_index,
+            semantic_vector: vector,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -360,7 +341,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let key: String = convert_custom_key(&custom_key);
 
@@ -381,15 +361,8 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -437,7 +410,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let value_to_send: String = process_json_value(&value)?;
 
         if let Some(custom_key_str) = &custom_key {
@@ -464,15 +436,8 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -543,7 +508,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_keys".to_string();
 
         let limit_map: HashMap<String, usize> = match limit {
@@ -574,15 +538,8 @@ impl PersistentKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -594,6 +551,8 @@ impl PersistentKeyspace {
     /// * `key` - Optional key of the value to update.
     /// * `custom_key` - Optional custom key of the value to update.
     /// * `value` - The new value to set. Must implement `Serialize`.
+    /// * `vector` - Optional replacement precomputed vector.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -603,7 +562,7 @@ impl PersistentKeyspace {
     ///
     /// ```rust, ignore,
     /// let updates = serde_json::json!({ "field1": "new_value" });
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, Some(3600)).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, None, None).await;
     /// let parsed = MontycatResponse::<String>::parse_response(res);
     /// ```
     ///
@@ -618,6 +577,7 @@ impl PersistentKeyspace {
         key: Option<String>,
         custom_key: Option<String>,
         value: T,
+        vector: Option<Vec<f32>>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -644,7 +604,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "update_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
 
@@ -659,19 +618,13 @@ impl PersistentKeyspace {
             value: value_to_send,
             command,
             wait_for_index,
+            semantic_vector: vector,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -681,6 +634,8 @@ impl PersistentKeyspace {
     /// # Arguments
     ///
     /// * `bulk_values` - A vector of values to insert. Each value must implement `Serialize` and `RuntimeSchema`.
+    /// * `vectors` - Optional precomputed vectors paired by position with `bulk_values`.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -690,7 +645,7 @@ impl PersistentKeyspace {
     ///
     /// ```rust, ignore,
     /// let values = vec![YourType { /* fields */ }, YourType { /* fields */ }];
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values, None, None).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
     /// ```
     ///
@@ -703,6 +658,7 @@ impl PersistentKeyspace {
     pub async fn insert_bulk<T>(
         &self,
         bulk_values: Vec<T>,
+        vectors: Option<Vec<Vec<f32>>>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -716,7 +672,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "insert_bulk".to_string();
 
         let (serialized_values, schema) = process_bulk_values(bulk_values).await?;
@@ -732,19 +687,13 @@ impl PersistentKeyspace {
             bulk_values: serialized_values,
             command,
             wait_for_index,
+            semantic_vector_list: vectors.unwrap_or_default(),
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -754,6 +703,8 @@ impl PersistentKeyspace {
     /// # Arguments
     ///
     /// * `bulk_values` - A vector of values to insert. Each value must implement `Serialize`.
+    /// * `vectors` - Optional precomputed vectors paired by position with `bulk_values`.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -763,7 +714,7 @@ impl PersistentKeyspace {
     ///
     /// ```rust, ignore,
     /// let values = vec!["value1", "value2", "value3"];
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values, None, None).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// ```
     ///
@@ -776,6 +727,7 @@ impl PersistentKeyspace {
     pub async fn insert_bulk_no_schema<T>(
         &self,
         bulk_values: Vec<T>,
+        vectors: Option<Vec<Vec<f32>>>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -789,7 +741,6 @@ impl PersistentKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "insert_bulk".to_string();
 
         // One JSON string per value — the server's insert_bulk creates one
@@ -809,19 +760,13 @@ impl PersistentKeyspace {
             bulk_values: serialized_values,
             command,
             wait_for_index,
+            semantic_vector_list: vectors.unwrap_or_default(),
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }

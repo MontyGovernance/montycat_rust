@@ -118,7 +118,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "create-keyspace".into(),
@@ -135,15 +134,8 @@ impl InMemoryKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -153,8 +145,11 @@ impl InMemoryKeyspace {
     /// # Arguments
     ///
     /// * `&self` - The keyspace instance.
+    /// * `custom_key` - Optional custom key for the inserted value.
     /// * `value` - The value to insert. Must implement `Serialize` and `MontycatSchema`.
+    /// * `vector` - Optional precomputed vector that bypasses server-side embedding.
     /// * `expire_sec` - Optional expiration time in seconds.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -164,7 +159,7 @@ impl InMemoryKeyspace {
     ///
     /// ```rust, ignore
     /// let value = YourType { /* fields */ };
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value(value, Some(3600)).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_value(None, value, None, Some(3600), None).await;
     /// let parsed = MontycatResponse::<YourType>::parse_response(res);
     /// ```
     ///
@@ -178,6 +173,7 @@ impl InMemoryKeyspace {
         &self,
         custom_key: Option<String>,
         value: T,
+        vector: Option<Vec<f32>>,
         expire_sec: Option<usize>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
@@ -193,7 +189,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let mut schema: Option<String> = None;
         let value_to_send: String = process_value(value)?;
         let type_name_retrieved: &str = type_name::<T>();
@@ -224,20 +219,14 @@ impl InMemoryKeyspace {
             command,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
             key,
+            semantic_vector: vector,
             wait_for_index,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -279,7 +268,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let key: String = convert_custom_key(&custom_key);
 
@@ -301,15 +289,8 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -359,7 +340,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let value_to_send: String = process_json_value(&value)?;
 
         if let Some(custom_key_str) = &custom_key {
@@ -387,15 +367,8 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -446,7 +419,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_keys".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -463,15 +435,8 @@ impl InMemoryKeyspace {
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -483,7 +448,9 @@ impl InMemoryKeyspace {
     /// * `key` - Optional key of the value to update.
     /// * `custom_key` - Optional custom key of the value to update.
     /// * `value` - The new value to set. Must implement `Serialize`.
+    /// * `vector` - Optional replacement precomputed vector.
     /// * `expire_sec` - Optional expiration time in seconds.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -493,7 +460,7 @@ impl InMemoryKeyspace {
     ///
     /// ```rust, ignore
     /// let updates = serde_json::json!({ "field1": "new_value" });
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, Some(3600)).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_value(Some("key".into()), None, updates, None, Some(3600), None).await;
     /// let parsed = MontycatResponse::<String>::parse_response(res);
     /// ```
     ///
@@ -508,6 +475,7 @@ impl InMemoryKeyspace {
         key: Option<String>,
         custom_key: Option<String>,
         value: T,
+        vector: Option<Vec<f32>>,
         expire_sec: Option<usize>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
@@ -535,7 +503,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "update_value".to_string();
         let value_to_send: String = process_json_value(&value)?;
 
@@ -549,21 +516,15 @@ impl InMemoryKeyspace {
             distributed,
             value: value_to_send,
             command,
+            semantic_vector: vector,
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
             wait_for_index,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -573,7 +534,9 @@ impl InMemoryKeyspace {
     /// # Arguments
     ///
     /// * `bulk_values` - A vector of values to insert. Each value must implement `Serialize` and `RuntimeSchema`.
+    /// * `vectors` - Optional precomputed vectors paired by position with `bulk_values`.
     /// * `expire_sec` - Optional expiration time in seconds for the inserted values.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -583,7 +546,7 @@ impl InMemoryKeyspace {
     ///
     /// ```rust, ignore
     /// let values = vec![YourType { /* fields */ }, YourType { /* fields */ }];
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values, Some(3600)).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk(values, None, Some(3600), None).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
     /// ```
     ///
@@ -596,6 +559,7 @@ impl InMemoryKeyspace {
     pub async fn insert_bulk<T>(
         &self,
         bulk_values: Vec<T>,
+        vectors: Option<Vec<Vec<f32>>>,
         expire_sec: Option<usize>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
@@ -610,7 +574,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "insert_bulk".to_string();
 
         let (serialized_values, schema) = process_bulk_values(bulk_values).await?;
@@ -625,21 +588,15 @@ impl InMemoryKeyspace {
             distributed,
             bulk_values: serialized_values,
             command,
+            semantic_vector_list: vectors.unwrap_or_default(),
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
             wait_for_index,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -649,7 +606,9 @@ impl InMemoryKeyspace {
     /// # Arguments
     ///
     /// * `bulk_values` - A vector of values to insert. Each value must implement `Serialize`.
+    /// * `vectors` - Optional precomputed vectors paired by position with `bulk_values`.
     /// * `expire_sec` - Optional expiration time in seconds for the inserted values.
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated.
     ///
     /// # Returns
     ///
@@ -659,7 +618,7 @@ impl InMemoryKeyspace {
     ///
     /// ```rust, ignore
     /// let values = vec!["simple_value1", "simple_value2"];
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values, Some(3600)).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.insert_bulk_no_schema(values, None, Some(3600), None).await;
     /// let parsed = MontycatResponse::<Vec<String>>::parse_response(res);
     /// ```
     ///
@@ -672,6 +631,7 @@ impl InMemoryKeyspace {
     pub async fn insert_bulk_no_schema<T>(
         &self,
         bulk_values: Vec<T>,
+        vectors: Option<Vec<Vec<f32>>>,
         expire_sec: Option<usize>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
@@ -686,7 +646,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "insert_bulk".to_string();
 
         // One JSON string per value — the server's insert_bulk creates one
@@ -705,21 +664,15 @@ impl InMemoryKeyspace {
             distributed,
             bulk_values: serialized_values,
             command,
+            semantic_vector_list: vectors.unwrap_or_default(),
             expire: expire_sec.map(|sec| sec as u64).unwrap_or(0),
             wait_for_index,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -749,7 +702,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "do-snapshots-for-keyspace".into(),
@@ -762,15 +714,8 @@ impl InMemoryKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -802,7 +747,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "clean-snapshots-for-keyspace".into(),
@@ -815,15 +759,8 @@ impl InMemoryKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -855,7 +792,6 @@ impl InMemoryKeyspace {
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "stop-snapshots-for-keyspace".into(),
@@ -868,15 +804,8 @@ impl InMemoryKeyspace {
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }

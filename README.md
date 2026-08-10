@@ -269,6 +269,44 @@ let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(filtered
 println!("{:?}", parsed);
 ```
 
+### Bring your own vectors
+
+If you already have embeddings — from another model, a batch pipeline, or an
+existing vector store — supply them directly and the server skips embedding.
+Needs a Montycat Semantic server 1.3.0 or newer.
+
+```rust
+// Writing: the vector is applied after the write succeeds.
+keyspace
+    .insert_value(None, doc, Some(my_embedding), None, None)
+    .await?;
+
+// Bulk: paired with bulk_values by position.
+keyspace
+    .insert_bulk(docs, Some(vec![embedding1, embedding2]), None, None)
+    .await?;
+
+// Searching: a query vector bypasses text embedding, so the query may be empty.
+let hits = keyspace
+    .semantic_search_get_values("", Some(my_query_embedding), None, None, false, false)
+    .await?;
+```
+
+`vector` is also accepted by `insert_custom_key_value` and `update_value`, and
+`update_bulk` takes `vectors` for numeric keys plus `custom_vectors` for custom
+keys. All four `semantic_search_*` methods accept a query vector. Pass `None`
+anywhere you want the server to embed.
+
+Dimensions must match the keyspace's enrolled model — the server validates
+before anything reaches the index, so a bad entry in a batch cannot leave the
+graph and the durable store disagreeing. A vector you supplied will not be
+overwritten by background embedding; a later ordinary write to that item clears
+the protection and re-embeds from its text, which is when re-embedding is what
+you want.
+
+Mixing is fine: items with supplied vectors and items the server embeds can
+live in one keyspace, as long as every vector comes from the same model.
+
 ## 📨 Response Shape
 
 Commands return `Result<Option<Vec<u8>>, MontycatClientError>` — raw bytes off the wire.
@@ -296,6 +334,68 @@ nested document arrives as a real structure. **Keys are u128 and travel as strin
 deserialize them into `String`, not an integer type. Client-side mistakes surface as
 `MontycatClientError` before anything is sent; server-side failures arrive with
 `status: false` and a populated `error`.
+
+`MontycatClientError` implements `Display` and `std::error::Error`, so it composes with
+`?`, `Box<dyn Error>`, `anyhow`, and `thiserror`'s `#[from]`:
+
+```rust,ignore
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?;
+    Ok(())
+}
+```
+
+## 🔄 Connection Pooling
+
+By default every request opens a TCP connection, sends, reads one response, and closes.
+Reuse the connection instead and the handshake disappears — **2.56x faster** on loopback
+against a debug engine (161 µs → 63 µs per `list-owners`). That is the conservative
+figure: over a network the handshake costs a full round trip before the query is even
+sent, and TLS adds one or two more.
+
+Pooling is opt-in. Enabling it is one line, and no call site changes:
+
+```rust,ignore
+use montycat::{Engine, PoolConfig};
+
+let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?
+    .with_pool(PoolConfig::default());          // ← the only new line
+
+persistent.insert_value(None, employee, None).await;   // unchanged
+
+// Before exit, in a long-lived process:
+engine.close_pool().await;
+```
+
+Tune it if you need to:
+
+```rust,ignore
+use std::time::Duration;
+
+let engine = engine.with_pool(PoolConfig {
+    max_idle: 4,                              // default 8
+    idle_timeout: Duration::from_secs(15),    // default 30s
+});
+```
+
+**Reuse one `Engine` for the process lifetime.** Cloning is cheap and shares the pool, so
+keyspaces built from it reuse connections. Building a fresh
+`Engine::from_uri(..).with_pool(..)` per request creates a fresh *empty* pool every time —
+you still pay every handshake and nothing is ever amortised.
+
+**Pooling is per-`Engine`, not global.** Two engines pointing at the same server keep
+separate pools.
+
+**Call `close_pool()` before exit.** `Drop` cannot be async, so without it TLS connections
+close without `close_notify` and the server logs an error for each one.
+
+**Keep `max_idle` modest.** An idle pooled connection still holds one of the engine's
+connection permits. The defaults are deliberately small; raise them only after measuring
+with the `queue-depths` command under realistic load.
+
+Subscriptions are never pooled — they are long-lived, stream many responses to one
+request, and live on their own port.
 
 ## 📡 Real-Time Subscriptions
 
@@ -347,9 +447,18 @@ engine.enable_tls();
 `Engine::new(..)` takes the same switch as its final `use_tls` argument. It applies to
 commands and subscriptions alike.
 
-> **Note.** The client accepts self-signed certificates, which is convenient for local
-> and internal deployments but means the server identity is not verified. Terminate TLS
-> at a trusted proxy if you need certificate validation.
+For a server with a publicly trusted certificate, enabling TLS is sufficient. For a
+private CA or a self-issued MontyCat certificate, explicitly add the PEM trust anchor:
+
+```rust,ignore
+let engine = Engine::from_uri("montycat://USER:PASS@montycat.internal:21210/mystore")?
+    .with_tls_ca_file("/etc/montycat/tls/ca.pem")?;
+```
+
+`with_tls_ca_file` is optional: it adds its certificates alongside the normal public
+WebPKI roots and enables TLS for that engine. Rustls still validates the certificate
+chain and the server hostname. The certificate must therefore contain the name or IP
+address that the client connects to as a Subject Alternative Name.
 
 ## 👥 Owners & Access
 

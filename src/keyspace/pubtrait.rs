@@ -74,7 +74,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "remove-keyspace".into(),
@@ -89,15 +88,8 @@ where
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -181,7 +173,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_value".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -200,15 +191,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -279,7 +263,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "delete_key".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -296,15 +279,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -372,7 +348,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "list_all_depending_keys".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -388,15 +363,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -482,7 +450,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_bulk".to_string();
 
         let limit_map: HashMap<String, usize> = match &limit {
@@ -518,15 +485,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -581,7 +541,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "delete_bulk".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -598,15 +557,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -638,7 +590,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "get_len".to_string();
 
         let new_store_req: StoreRequestClient = StoreRequestClient {
@@ -653,15 +604,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_req).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -721,7 +665,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "enforce-schema".into(),
@@ -740,15 +683,8 @@ where
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -791,7 +727,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
 
         let vec: Vec<String> = vec![
             "remove-enforced-schema".into(),
@@ -808,15 +743,8 @@ where
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
         let bytes: Vec<u8> = query.byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -848,7 +776,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "list_all_schemas_in_keyspace".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -863,15 +790,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -882,6 +802,9 @@ where
     ///
     /// * `bulk_keys_values` - A vector of HashMaps containing key-value pairs to update
     /// * `bulk_custom_keys_values` - A vector of HashMaps containing custom key-value pairs to update
+    /// * `vectors` - Optional numeric keys mapped to precomputed vectors
+    /// * `custom_vectors` - Optional custom keys mapped to precomputed vectors
+    /// * `wait_for_index` - Optional override for waiting until indexes are updated
     ///
     /// # Behavior
     ///
@@ -902,7 +825,9 @@ where
     ///     hashmap![("MyCustomKey2".to_string(), "custom_value2".to_string())],
     /// ];
     ///
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.update_bulk(bulk_keys_values, bulk_custom_keys_values).await;
+    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace
+    ///     .update_bulk(bulk_keys_values, bulk_custom_keys_values, None, None, None)
+    ///     .await;
     ///
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     ///
@@ -921,6 +846,8 @@ where
         &self,
         bulk_keys_values: Vec<HashMap<String, T>>,
         bulk_custom_keys_values: Vec<HashMap<String, T>>,
+        vectors: Option<HashMap<String, Vec<f32>>>,
+        custom_vectors: Option<HashMap<String, Vec<f32>>>,
         wait_for_index: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -932,6 +859,10 @@ where
 
         let bulk: HashMap<String, String> =
             merge_bulk_keys_values(bulk_keys_values, bulk_custom_keys_values).await?;
+        let mut semantic_vectors = vectors.unwrap_or_default();
+        for (key, vector) in custom_vectors.unwrap_or_default() {
+            semantic_vectors.insert(convert_custom_key(&key), vector);
+        }
 
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
@@ -941,7 +872,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "update_bulk".to_string();
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
@@ -954,19 +884,13 @@ where
             distributed,
             command,
             wait_for_index,
+            semantic_vectors,
             ..Default::default()
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1034,7 +958,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "lookup_keys".to_string();
 
         let filters_serialized: String = process_json_value(&search_criteria)?;
@@ -1067,15 +990,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1148,7 +1064,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "lookup_values".to_string();
 
         let filters_serialized: String = process_json_value(&search_criteria)?;
@@ -1184,15 +1099,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1206,6 +1114,7 @@ where
     async fn semantic_search_core(
         &self,
         query: &str,
+        semantic_vector: Option<Vec<f32>>,
         limit: Option<Limit>,
         min_score: Option<f32>,
         filters: Option<serde_json::Value>,
@@ -1213,7 +1122,12 @@ where
         key_included: bool,
         pointers_metadata: bool,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if query.trim().is_empty() {
+        if semantic_vector.is_none() && query.trim().is_empty() {
+            return Err(MontycatClientError::ClientNoValidInputProvided);
+        }
+        if semantic_vector.as_ref().is_some_and(|vector| {
+            vector.is_empty() || vector.iter().any(|value| !value.is_finite())
+        }) {
             return Err(MontycatClientError::ClientNoValidInputProvided);
         }
 
@@ -1240,7 +1154,6 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let use_tls: bool = engine.use_tls;
         let command: String = "semantic_search".to_string();
 
         let limit_map: HashMap<String, usize> = match limit {
@@ -1262,6 +1175,7 @@ where
             pointers_metadata,
             min_score,
             semantic_filter,
+            semantic_vector,
             limit_output: limit_map,
             search_criteria: query.to_owned(),
             username: engine.username.clone(),
@@ -1275,15 +1189,8 @@ where
         };
 
         let bytes: Vec<u8> = Req::new_store_command(new_store_request).byte_down()?;
-        let response: Option<Vec<u8>> = send_data(
-            &engine.host,
-            engine.port,
-            bytes.as_slice(),
-            None,
-            None,
-            use_tls,
-        )
-        .await?;
+        let response: Option<Vec<u8>> =
+            send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
     }
@@ -1302,7 +1209,8 @@ where
     ///
     /// # Arguments
     ///
-    /// * `query` - The natural-language query text to embed and search for
+    /// * `query` - The natural-language query text; may be empty when `vector` is supplied
+    /// * `vector` - Optional precomputed query vector that bypasses text embedding
     /// * `limit` - An optional Limit over the ranked hits; None lets the server
     ///   apply its default top-k (10)
     /// * `min_score` - Drop hits whose cosine similarity (in [-1, 1]) is below
@@ -1311,24 +1219,25 @@ where
     /// # Examples
     ///
     /// ```rust, ignore
-    /// let res = keyspace.semantic_search_get_keys("astronomy and outer space", Some(Limit { start: 0, stop: 3 }), None).await;
+    /// let res = keyspace.semantic_search_get_keys("astronomy and outer space", None, Some(Limit { start: 0, stop: 3 }), None).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// // each hit: {"__key__": ..., "__score__": ...}
     /// ```
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If neither query text nor a valid vector is supplied
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
     async fn semantic_search_get_keys(
         &self,
         query: &str,
+        vector: Option<Vec<f32>>,
         limit: Option<Limit>,
         min_score: Option<f32>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        self.semantic_search_core(query, limit, min_score, None, false, false, false)
+        self.semantic_search_core(query, vector, limit, min_score, None, false, false, false)
             .await
     }
 
@@ -1346,7 +1255,8 @@ where
     ///
     /// # Arguments
     ///
-    /// * `query` - The natural-language query text to embed and search for
+    /// * `query` - The natural-language query text; may be empty when `vector` is supplied
+    /// * `vector` - Optional precomputed query vector that bypasses text embedding
     /// * `filters` - Metadata criteria, same shape `lookup_keys_where` takes
     /// * `limit` - An optional Limit over the ranked hits; None lets the server
     ///   apply its default top-k (10)
@@ -1357,26 +1267,36 @@ where
     ///
     /// ```rust, ignore
     /// // only rank items whose indexed `category` equals "space"
-    /// let res = keyspace.semantic_search_get_keys_where("astronomy", serde_json::json!({"category": "space"}), None, None).await;
+    /// let res = keyspace.semantic_search_get_keys_where("astronomy", None, serde_json::json!({"category": "space"}), None, None).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// // each hit: {"__key__": ..., "__score__": ...}
     /// ```
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If neither query text nor a valid vector is supplied, or filters are empty
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
     async fn semantic_search_get_keys_where(
         &self,
         query: &str,
+        vector: Option<Vec<f32>>,
         filters: serde_json::Value,
         limit: Option<Limit>,
         min_score: Option<f32>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        self.semantic_search_core(query, limit, min_score, Some(filters), false, false, false)
-            .await
+        self.semantic_search_core(
+            query,
+            vector,
+            limit,
+            min_score,
+            Some(filters),
+            false,
+            false,
+            false,
+        )
+        .await
     }
 
     /// Semantic (vector similarity) search returning ranked hits with their values.
@@ -1392,7 +1312,8 @@ where
     ///
     /// # Arguments
     ///
-    /// * `query` - The natural-language query text to embed and search for
+    /// * `query` - The natural-language query text; may be empty when `vector` is supplied
+    /// * `vector` - Optional precomputed query vector that bypasses text embedding
     /// * `limit` - An optional Limit over the ranked hits; None lets the server
     ///   apply its default top-k (10)
     /// * `min_score` - Drop hits whose cosine similarity (in [-1, 1]) is below
@@ -1405,7 +1326,7 @@ where
     /// # Examples
     ///
     /// ```rust, ignore
-    /// let res = keyspace.semantic_search_get_values("recipes for dinner", None, Some(0.3), false, false).await;
+    /// let res = keyspace.semantic_search_get_values("recipes for dinner", None, None, Some(0.3), false, false).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// // each hit: {"__key__": ..., "__score__": ..., "__value__": ...} — the
     /// // same dunder envelope `lookup_values_where` returns with key_included=true,
@@ -1414,13 +1335,14 @@ where
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If neither query text nor a valid vector is supplied
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
     async fn semantic_search_get_values(
         &self,
         query: &str,
+        vector: Option<Vec<f32>>,
         limit: Option<Limit>,
         min_score: Option<f32>,
         with_pointers: bool,
@@ -1428,6 +1350,7 @@ where
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         self.semantic_search_core(
             query,
+            vector,
             limit,
             min_score,
             None,
@@ -1452,7 +1375,8 @@ where
     ///
     /// # Arguments
     ///
-    /// * `query` - The natural-language query text to embed and search for
+    /// * `query` - The natural-language query text; may be empty when `vector` is supplied
+    /// * `vector` - Optional precomputed query vector that bypasses text embedding
     /// * `filters` - Metadata criteria, same shape `lookup_keys_where` takes
     /// * `limit` - An optional Limit over the ranked hits; None lets the server
     ///   apply its default top-k (10)
@@ -1466,20 +1390,21 @@ where
     /// # Examples
     ///
     /// ```rust, ignore
-    /// let res = keyspace.semantic_search_get_values_where("astronomy", serde_json::json!({"category": "space"}), None, None, false, false).await;
+    /// let res = keyspace.semantic_search_get_values_where("astronomy", None, serde_json::json!({"category": "space"}), None, None, false, false).await;
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// // each hit: {"__key__": ..., "__score__": ..., "__value__": ...}
     /// ```
     ///
     /// # Errors
     ///
-    /// * `MontycatClientError::ClientNoValidInputProvided` - If the query text is empty
+    /// * `MontycatClientError::ClientNoValidInputProvided` - If neither query text nor a valid vector is supplied, or filters are empty
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
     async fn semantic_search_get_values_where(
         &self,
         query: &str,
+        vector: Option<Vec<f32>>,
         filters: serde_json::Value,
         limit: Option<Limit>,
         min_score: Option<f32>,
@@ -1488,6 +1413,7 @@ where
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         self.semantic_search_core(
             query,
+            vector,
             limit,
             min_score,
             Some(filters),
@@ -1547,8 +1473,6 @@ where
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let persistent = self.get_persistent();
 
-        let use_tls = engine.use_tls;
-
         let key = {
             if key.is_some() && custom_key.is_some() {
                 return Err(MontycatClientError::ClientSelectedBothKeyAndCustomKey);
@@ -1566,15 +1490,16 @@ where
             &engine.password,
         )?;
 
-        let host = engine.host.clone();
+        // The spawned task outlives this scope, so it owns an `Engine` clone
+        // rather than borrowing. Subscriptions are never pooled (contract §5);
+        // the clone only carries connection parameters.
         tokio::spawn(async move {
             let _ = send_data(
-                &host,
-                port,
+                &engine,
                 request_bytes.as_slice(),
                 Some(callback),
                 Some(&mut stop_rx),
-                use_tls,
+                Some(port),
             )
             .await;
         });

@@ -53,6 +53,24 @@ impl MontycatClientError {
     }
 }
 
+impl std::fmt::Display for MontycatClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message())
+    }
+}
+
+/// Lets this error compose with `?`, `Box<dyn Error>`, `anyhow`, and
+/// `thiserror`'s `#[from]`.
+///
+/// Without it a caller could not write
+/// `Engine::from_uri(..)?` inside a `Result<_, Box<dyn Error>>` function — the
+/// usual shape of an `axum` or `tokio` `main` — and had to reach for
+/// `.map_err(|e| e.message())` at every call site.
+///
+/// No `source()` is reported: the variants carry rendered strings rather than
+/// an underlying error value, so there is no cause to chain to.
+impl std::error::Error for MontycatClientError {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,6 +133,32 @@ mod tests {
     fn test_client_unsupported_field_type_message() {
         let error = MontycatClientError::ClientUnsupportedFieldType("ComplexType".to_string());
         assert_eq!(error.message(), "Unsupported field type: ComplexType");
+    }
+
+    #[test]
+    fn display_matches_message() {
+        let error = MontycatClientError::ClientStoreNotSet;
+        assert_eq!(error.to_string(), error.message());
+        assert_eq!(format!("{}", error), "Store is not set in the engine");
+    }
+
+    #[test]
+    fn composes_with_the_question_mark_operator() {
+        // The shape an axum/tokio `main` uses. Before `Display` + `Error` this
+        // did not compile: `Box<dyn Error>` had no `From<MontycatClientError>`.
+        fn fallible() -> Result<(), Box<dyn std::error::Error>> {
+            Err(MontycatClientError::ClientNoValidInputProvided)?
+        }
+        let err = fallible().unwrap_err();
+        assert_eq!(err.to_string(), "No valid input provided");
+    }
+
+    #[test]
+    fn is_usable_as_a_std_error_trait_object() {
+        let error: Box<dyn std::error::Error> =
+            Box::new(MontycatClientError::ClientEngineError("boom".into()));
+        assert_eq!(error.to_string(), "boom");
+        assert!(error.source().is_none());
     }
 
     #[test]

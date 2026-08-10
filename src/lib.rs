@@ -7,6 +7,7 @@ pub mod response;
 pub mod tools;
 pub mod traits;
 
+pub use engine::pool::{ConnectionPool, PoolConfig};
 pub use engine::structure::{
     Engine, PolicyCapability, PolicyFormat, PolicyKeyspaceType, SemanticModel, ValidPermissions,
 };
