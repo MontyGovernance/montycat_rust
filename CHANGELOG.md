@@ -154,8 +154,7 @@ per frame rather than once per socket chunk.
   tested `buf.contains(&b'\n')` after each 256 KiB read, making a large response
   O(n²) in the number of chunks. Responses are now read with
   `BufReader::read_until`, which is O(n) and stops at the frame boundary instead
-  of retaining bytes belonging to whatever comes next — a prerequisite for the
-  connection pooling in `CONNECTION_POOLING_PLAN.md`.
+  of retaining bytes belonging to whatever comes next.
 
 ### Changed
 
