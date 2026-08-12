@@ -39,7 +39,7 @@ fn raw(request: &Value) -> &Vec<Value> {
 
 #[tokio::test]
 async fn store_owner_access_and_semantic_commands_match_wire_contract() {
-    let (engine, server) = capture_engine(11).await;
+    let (engine, server) = capture_engine(12).await;
 
     engine.create_store().await.unwrap();
     engine.remove_store().await.unwrap();
@@ -77,6 +77,15 @@ async fn store_owner_access_and_semantic_commands_match_wire_contract() {
             "products",
             SemanticModel::BgeBase,
             Some("description"),
+        )
+        .await
+        .unwrap();
+    engine
+        .enable_precomputed_vector_search(
+            "catalog",
+            "embeddings",
+            1536,
+            "text-embedding-3-small:v1",
         )
         .await
         .unwrap();
@@ -142,6 +151,19 @@ async fn store_owner_access_and_semantic_commands_match_wire_contract() {
             "catalog",
             "keyspace",
             "products",
+        ],
+        vec![
+            "enable-semantic-search",
+            "source",
+            "external",
+            "dimensions",
+            "1536",
+            "embedding-space",
+            "text-embedding-3-small:v1",
+            "store",
+            "catalog",
+            "keyspace",
+            "embeddings",
         ],
     ];
     for (request, expected_raw) in requests.iter().zip(expected) {

@@ -127,6 +127,27 @@ impl PersistentKeyspace {
         cache: Option<usize>,
         compression: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.create_keyspace_with_semantic(cache, compression, true)
+            .await
+    }
+
+    /// Creates a keyspace without automatic onboard-model enrollment, ready
+    /// for `Engine::enable_precomputed_vector_search`.
+    pub async fn create_keyspace_without_semantic(
+        &self,
+        cache: Option<usize>,
+        compression: Option<bool>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.create_keyspace_with_semantic(cache, compression, false)
+            .await
+    }
+
+    async fn create_keyspace_with_semantic(
+        &self,
+        cache: Option<usize>,
+        compression: Option<bool>,
+        semantic: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
@@ -137,7 +158,7 @@ impl PersistentKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
 
-        let vec: Vec<String> = vec![
+        let mut vec: Vec<String> = vec![
             "create-keyspace".into(),
             "store".into(),
             store,
@@ -152,6 +173,9 @@ impl PersistentKeyspace {
             "compression".into(),
             compression.map_or("n".into(), |c| if c { "y".into() } else { "n".into() }),
         ];
+        if !semantic {
+            vec.extend(["semantic".into(), "off".into()]);
+        }
 
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);

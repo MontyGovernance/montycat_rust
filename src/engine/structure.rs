@@ -1009,6 +1009,41 @@ impl Engine {
         self.execute_governance_command(command).await
     }
 
+    /// Enroll a keyspace for caller-supplied vectors from an external model.
+    /// Existing records require a client-side vector import/backfill.
+    pub async fn enable_precomputed_vector_search(
+        &self,
+        store: &str,
+        keyspace: &str,
+        dimensions: u16,
+        embedding_space: &str,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        if dimensions == 0 || dimensions > 4096 {
+            return Err(MontycatClientError::ClientGenericError(
+                "dimensions must be between 1 and 4096".into(),
+            ));
+        }
+        if embedding_space.is_empty() || embedding_space.len() > 128 {
+            return Err(MontycatClientError::ClientGenericError(
+                "embedding_space must contain 1 to 128 characters".into(),
+            ));
+        }
+        self.execute_governance_command(vec![
+            "enable-semantic-search".into(),
+            "source".into(),
+            "external".into(),
+            "dimensions".into(),
+            dimensions.to_string(),
+            "embedding-space".into(),
+            embedding_space.into(),
+            "store".into(),
+            store.into(),
+            "keyspace".into(),
+            keyspace.into(),
+        ])
+        .await
+    }
+
     /// Return the actual global and per-keyspace semantic configuration.
     pub async fn get_semantic_status(
         &self,

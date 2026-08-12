@@ -110,6 +110,20 @@ impl InMemoryKeyspace {
     /// * `MontycatClientError::ClientValueParsingError` - If there is an error parsing the response.
     ///
     pub async fn create_keyspace(&self) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.create_keyspace_with_semantic(true).await
+    }
+
+    /// Creates a keyspace without automatic onboard-model enrollment.
+    pub async fn create_keyspace_without_semantic(
+        &self,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.create_keyspace_with_semantic(false).await
+    }
+
+    async fn create_keyspace_with_semantic(
+        &self,
+        semantic: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
         let engine: Engine = self.get_engine();
         let name: &str = self.get_name();
         let persistent: bool = self.get_persistent();
@@ -119,7 +133,7 @@ impl InMemoryKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
 
-        let vec: Vec<String> = vec![
+        let mut vec: Vec<String> = vec![
             "create-keyspace".into(),
             "store".into(),
             store,
@@ -130,6 +144,9 @@ impl InMemoryKeyspace {
             "distributed".into(),
             if distributed { "y".into() } else { "n".into() },
         ];
+        if !semantic {
+            vec.extend(["semantic".into(), "off".into()]);
+        }
 
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
