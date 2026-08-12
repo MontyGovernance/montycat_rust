@@ -15,7 +15,7 @@ The official async Rust client for [Montycat](https://montygovernance.com) — a
 // Search your data by MEANING — no external APIs, no separate vector database.
 // (already ON by default in the montycat-semantic server edition)
 let hits = keyspace
-    .semantic_search_get_values("Show all Bluetooth devices", None, None, false, false)
+    .semantic_search_get_values("Show all Bluetooth devices", None, None, None, false, false)
     .await;
 // → [{ __key__: 123..., __score__: 0.82, __value__: { "name": "Wireless Headphones" }}]
 ```
@@ -90,7 +90,7 @@ Add the client to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-montycat = "0.3"
+montycat = "0.4"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -99,7 +99,7 @@ serde_json = "1"
 With TLS:
 
 ```toml
-montycat = { version = "0.3", features = ["tls"] }
+montycat = { version = "0.4", features = ["tls"] }
 ```
 
 ## Quick Start
@@ -140,11 +140,11 @@ async fn main() {
         name: "Monty".to_string(),
     };
 
-    // insert_value(custom_key, value, [expire (in-memory only),] wait_for_index)
-    let insert_res_in_mem = in_mem.insert_value(None, employee.clone(), None, None).await;
+    // insert_value(custom_key, value, vector, [expire (in-memory only),] wait_for_index)
+    let insert_res_in_mem = in_mem.insert_value(None, employee.clone(), None, None, None).await;
     println!("Insert response: {:?}", insert_res_in_mem);
 
-    let insert_res_pers = persistent.insert_value(None, employee, None).await;
+    let insert_res_pers = persistent.insert_value(None, employee, None, None).await;
     println!("Insert response: {:?}", insert_res_pers);
 
     let search_criteria = serde_json::json!({
@@ -208,12 +208,12 @@ use montycat::{Keyspace, Limit, MontycatResponse, SemanticModel};
 //   get_values -> each hit is { __key__, __score__, __value__ }
 //   get_keys   -> each hit is { __key__, __score__ } (lighter; fetch a page later with get_bulk)
 let values = persistent
-    .semantic_search_get_values("Show all Bluetooth devices", Some(Limit { start: 0, stop: 5 }), None, false, false)
+    .semantic_search_get_values("Show all Bluetooth devices", None, Some(Limit { start: 0, stop: 5 }), None, false, false)
     .await;
 
 // Keys only, with a cosine-similarity floor (range [-1, 1]):
 let _keys = persistent
-    .semantic_search_get_keys("Show all Bluetooth devices", Some(Limit { start: 0, stop: 5 }), Some(0.35))
+    .semantic_search_get_keys("Show all Bluetooth devices", None, Some(Limit { start: 0, stop: 5 }), Some(0.35))
     .await;
 
 let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(values);
@@ -256,6 +256,7 @@ it does not boost or otherwise alter cosine scores.
 let filtered = persistent
     .semantic_search_get_values_where(
         "astronomy and outer space",
+        None,
         serde_json::json!({"category": "space"}),
         Some(Limit { start: 0, stop: 5 }),
         Some(0.35),
@@ -336,7 +337,7 @@ use montycat::MontycatResponse;
 // { "status": true,  "payload": <result>, "error": null }
 // { "status": false, "payload": null,     "error": "Governance permission denied: ..." }
 
-let raw = persistent.insert_value(None, employee, None).await;
+let raw = persistent.insert_value(None, employee, None, None).await;
 let parsed: MontycatResponse<Option<String>> = MontycatResponse::parse_response(raw)?;
 
 if parsed.status {
@@ -379,7 +380,7 @@ use montycat::{Engine, PoolConfig};
 let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?
     .with_pool(PoolConfig::default());          // ← the only new line
 
-persistent.insert_value(None, employee, None).await;   // unchanged
+persistent.insert_value(None, employee, None, None).await;   // unchanged
 
 // Before exit, in a long-lived process:
 engine.close_pool().await;
@@ -453,7 +454,7 @@ second port (`21211`) published in the Docker command above.
 TLS is behind a feature flag, so the dependency tree stays lean when you do not need it:
 
 ```toml
-montycat = { version = "0.3", features = ["tls"] }
+montycat = { version = "0.4", features = ["tls"] }
 ```
 
 ```rust,ignore

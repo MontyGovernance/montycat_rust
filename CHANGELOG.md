@@ -17,7 +17,7 @@ per frame rather than once per socket chunk.
 
 ### ⚠️ Breaking
 
-- **`Engine` gained a private field, so struct-literal construction no longer
+- **`Engine` gained private fields, so struct-literal construction no longer
   compiles.** Use the constructors:
 
   ```rust
@@ -26,7 +26,8 @@ per frame rather than once per socket chunk.
   let engine = Engine::from_uri("montycat://user:pass@host:21210/store")?;
   ```
 
-  The field holds an optional connection pool and is `#[serde(skip)]`, so
+  The fields hold an optional connection pool and, under the `tls` feature, the
+  extra trust anchors from `with_tls_ca_file`. Both are `#[serde(skip)]`, so
   `Engine` stays serializable and a deserialized engine simply has no pool.
 
 - **Write and semantic-search methods gained a vector parameter, so every call
@@ -40,12 +41,13 @@ per frame rather than once per socket chunk.
   keyspace.insert_value(None, value, None, None, None).await?;    // vector: None
   ```
 
-  Affected: `insert_value`, `insert_value_no_schema`, `update_value`,
-  `insert_bulk`, and `insert_bulk_no_schema` on both `KeyspaceInMemory` and
-  `KeyspacePersistent`, gaining `vector: Option<Vec<f32>>` or
-  `vectors: Option<Vec<Vec<f32>>>` after `value` / `bulk_values`;
-  `update_bulk`, gaining `vectors` and `custom_vectors`; and the four
-  `semantic_search_*` methods, gaining `vector: Option<Vec<f32>>` after `query`.
+  Affected: `insert_value`, `update_value`, `insert_bulk`, and
+  `insert_bulk_no_schema` on both `InMemoryKeyspace` and `PersistentKeyspace`,
+  gaining `vector: Option<Vec<f32>>` or `vectors: Option<Vec<Vec<f32>>>` after
+  `value` / `bulk_values`; `update_bulk`, gaining `vectors` and
+  `custom_vectors`; and the four `semantic_search_*` methods, gaining
+  `vector: Option<Vec<f32>>` after `query`. `insert_value_no_schema` is
+  unchanged — supply a vector through `insert_value` or `insert_bulk_no_schema`.
 
   The mechanical fix is one `None` per call site — the compiler lists every one.
 
@@ -89,6 +91,22 @@ per frame rather than once per socket chunk.
   unchanged. `source()` returns `None`: the variants carry rendered strings
   rather than an underlying error value, so there is no cause to chain to.
 
+- **`Engine::with_tls_ca_file(path)` trusts a PEM file for that engine's TLS
+  connections** (requires the `tls` feature). A private CA or a self-issued
+  MontyCat server certificate previously had no way to be trusted:
+
+  ```rust
+  let engine = Engine::from_uri("montycat://USER:PASS@montycat.internal:21210/mystore")?
+      .with_tls_ca_file("/etc/montycat/tls/ca.pem")?;
+  ```
+
+  Its certificates are added *alongside* the public WebPKI roots, and the call
+  enables TLS for the engine. Rustls still verifies the chain and the server
+  hostname, so the certificate must carry the name or IP the client connects to
+  as a Subject Alternative Name. A missing, unparsable, or certificate-free file
+  returns `MontycatClientError::ClientEngineError` rather than falling back to an
+  unverified connection.
+
 - **Opt-in connection pooling.** Every request previously opened a TCP
   connection, sent one request, read one response, and closed. Reusing a
   connection measures **2.56x faster** on loopback against a debug engine
@@ -100,7 +118,7 @@ per frame rather than once per socket chunk.
   let engine = Engine::from_uri("montycat://user:pass@127.0.0.1:21210/mystore")?
       .with_pool(PoolConfig::default());   // the only new line
 
-  persistent.insert_value(None, employee, None).await;   // unchanged
+  persistent.insert_value(None, employee, None, None).await;   // unchanged
   ```
 
   Disabled by default, so no existing deployment changes behavior on upgrade —
