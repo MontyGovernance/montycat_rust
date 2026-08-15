@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.4.1] - 2026-08-15
+
 - Add `ResultOrder` and optional ordering arguments to key-range, bulk, and lookup reads.
 
 ## [0.4.0]
