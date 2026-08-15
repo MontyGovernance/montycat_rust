@@ -13,6 +13,13 @@ pub struct Limit {
     pub stop: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ResultOrder {
+    Ascending,
+    Descending,
+}
+
 impl Limit {
     /// Creates a default limit with start and stop set to 0.
     ///

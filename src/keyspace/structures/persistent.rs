@@ -6,7 +6,7 @@ use crate::request::store_request::structure::StoreRequestClient;
 use crate::request::utis::functions::convert_custom_key;
 use crate::request::{structure::Req, utis::functions::is_custom_type};
 use crate::tools::functions::{process_bulk_values, process_json_value, process_value};
-use crate::tools::structure::Limit;
+use crate::tools::structure::{Limit, ResultOrder};
 use crate::traits::RuntimeSchema;
 use serde::Serialize;
 use std::any::type_name;
@@ -508,6 +508,7 @@ impl PersistentKeyspace {
     pub async fn get_keys(
         &self,
         limit: Option<Limit>,
+        order: Option<ResultOrder>,
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
@@ -558,6 +559,7 @@ impl PersistentKeyspace {
             volumes: volumes.unwrap_or_default(),
             latest_volume: latest_volume.unwrap_or_default(),
             limit_output: limit_map,
+            order,
             ..Default::default()
         };
 

@@ -1,5 +1,5 @@
 use crate::{
-    Limit, MontycatClientError,
+    Limit, MontycatClientError, ResultOrder,
     engine::{structure::Engine, utils::send_data},
     request::{
         store_request::structure::StoreRequestClient,
@@ -418,6 +418,7 @@ where
         key_included: bool,
         with_pointers_metadata: bool,
         limit: Option<Limit>,
+        order: Option<ResultOrder>,
         volumes: Option<Vec<String>>,
         latest_volume: Option<bool>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
@@ -476,6 +477,7 @@ where
             distributed,
             command,
             limit_output: limit_map,
+            order,
             username: engine.username.clone(),
             password: engine.password.clone(),
             with_pointers,
@@ -937,6 +939,7 @@ where
         &self,
         search_criteria: T,
         limit: Option<Limit>,
+        order: Option<ResultOrder>,
         schema_name: Option<(HashMap<&str, &str>, &str)>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError>
     where
@@ -978,6 +981,7 @@ where
         let new_store_request: StoreRequestClient = StoreRequestClient {
             schema,
             limit_output: limit_map,
+            order,
             search_criteria: filters_serialized,
             username: engine.username.clone(),
             password: engine.password.clone(),
@@ -1040,6 +1044,7 @@ where
         &self,
         search_criteria: T,
         limit: Option<Limit>,
+        order: Option<ResultOrder>,
         with_pointers: bool,
         key_included: bool,
         pointers_metadata: bool,
@@ -1087,6 +1092,7 @@ where
             pointers_metadata,
             schema,
             limit_output: limit_map,
+            order,
             search_criteria: filters_serialized,
             username: engine.username.clone(),
             password: engine.password.clone(),

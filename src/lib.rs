@@ -18,5 +18,5 @@ pub use keyspace::{
 };
 pub use montycat_serialization_derive::{BinaryConvert, RuntimeSchema};
 pub use response::structure::{MontycatResponse, MontycatStreamResponse};
-pub use tools::structure::{Limit, Pointer, Timestamp};
+pub use tools::structure::{Limit, Pointer, ResultOrder, Timestamp};
 pub use traits::RuntimeSchema;

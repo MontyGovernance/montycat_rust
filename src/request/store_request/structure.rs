@@ -1,3 +1,4 @@
+use crate::tools::structure::ResultOrder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -36,6 +37,8 @@ pub(crate) struct StoreRequestClient {
     pub persistent: bool,
     pub distributed: bool,
     pub limit_output: HashMap<String, usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<ResultOrder>,
     pub key: Option<String>,
     pub value: String,
     pub command: String,
@@ -83,6 +86,7 @@ pub(crate) struct StoreRequestClient {
 #[cfg(test)]
 mod tests {
     use super::StoreRequestClient;
+    use crate::ResultOrder;
     use std::collections::HashMap;
 
     #[test]
@@ -120,5 +124,15 @@ mod tests {
             serde_json::from_value::<Vec<Vec<f32>>>(value["semantic_vector_list"].clone()).unwrap(),
             vec![vec![0.5, 0.6]]
         );
+    }
+
+    #[test]
+    fn serializes_explicit_result_order() {
+        let value = serde_json::to_value(StoreRequestClient {
+            order: Some(ResultOrder::Ascending),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(value["order"], "ascending");
     }
 }
