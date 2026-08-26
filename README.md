@@ -152,7 +152,17 @@ async fn main() {
     });
 
     // Lookup values where name is Monty
-    let lookup_res_in_mem = in_mem.lookup_values_where(search_criteria.clone(), None, false, true, false, None).await;
+    let lookup_res_in_mem = in_mem
+        .lookup_values_where(
+            search_criteria.clone(),
+            None,
+            None, // default: ascending key order
+            false,
+            true,
+            false,
+            None,
+        )
+        .await;
     // Parse into desired type
     let parsed = MontycatResponse::<Option<Employee>>::parse_response(lookup_res_in_mem);
     println!("Lookup response: {:?}", parsed);
@@ -161,8 +171,11 @@ async fn main() {
     let lookup_res_pers = persistent.lookup_values_where(
         search_criteria,
         None,
-        false, true, false,
-        Some(Employee::schema_params())
+        None, // default: ascending key order
+        false,
+        true,
+        false,
+        Some(Employee::schema_params()),
     ).await;
 
     // Parse into desired type

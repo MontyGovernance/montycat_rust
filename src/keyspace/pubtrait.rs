@@ -897,32 +897,38 @@ where
         Ok(response)
     }
 
-    /// Lookup keys in the keyspace based on provided filters
+    /// Looks up keys whose indexed fields match every supplied criterion.
     ///
     /// # Arguments
     ///
-    /// * `filters` - A serializable object representing the filters to apply
-    /// * `limit` - An optional Limit struct to limit the number of results
-    /// * `schema` - An optional schema name to apply during the lookup
+    /// * `search_criteria` - A serializable JSON object of exact-match criteria.
+    ///   Criteria are combined with AND.
+    /// * `limit` - Optional zero-based result range. `stop: 0` returns all
+    ///   matches; otherwise the range is `start..stop` (exclusive stop).
+    /// * `order` - Optional key ordering. The server defaults to ascending.
+    /// * `schema_name` - Optional `RuntimeSchema::schema_params()` tuple used
+    ///   to restrict results to that schema.
     ///
     /// # Behavior
     ///
-    /// Sends a request to the server to lookup keys based on the provided search_criteria and limit
-    /// Returns the raw response bytes from the server
+    /// Ordering is applied before pagination. Returns the raw response bytes
+    /// from the server; parse them with `MontycatResponse`.
     ///
     /// # Examples
     ///
     /// ```rust, ignore
     /// use serde_json::json;
     ///
-    /// let search_criteria = json!({
-    ///     "field1": "value1",
-    ///     "field2": { "num": 10 }
-    /// });
+    /// let search_criteria = json!({ "field1": "value1", "field2": 10 });
     ///
-    /// let limit = Some(Limit { start: 0, stop: 10 });
-    ///
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_keys_where(search_criteria, limit, Some("MySchema".to_string())).await;
+    /// let res = keyspace
+    ///     .lookup_keys_where(
+    ///         search_criteria,
+    ///         Some(Limit::new(0, 10)),
+    ///         Some(ResultOrder::Ascending),
+    ///         Some(MySchema::schema_params()),
+    ///     )
+    ///     .await;
     ///
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     ///
@@ -1000,35 +1006,44 @@ where
         Ok(response)
     }
 
-    /// Lookup values in the keyspace based on provided filters
+    /// Looks up values whose indexed fields match every supplied criterion.
     ///
     /// # Arguments
     ///
-    /// * `filters` - A serializable object representing the filters to apply
-    /// * `limit` - An optional Limit struct to limit the number of results
+    /// * `search_criteria` - A serializable JSON object of exact-match criteria.
+    ///   Criteria are combined with AND.
+    /// * `limit` - Optional zero-based result range. `stop: 0` returns all
+    ///   matches; otherwise the range is `start..stop` (exclusive stop).
+    /// * `order` - Optional key ordering. The server defaults to ascending.
     /// * `with_pointers` - Whether to include pointers in the returned values
     /// * `key_included` - Whether to include the key in the returned values
     /// * `pointers_metadata` - Whether to include metadata about pointers in the returned values
-    /// * `schema` - An optional schema name to apply during the lookup
+    /// * `schema_name` - Optional `RuntimeSchema::schema_params()` tuple used
+    ///   to restrict results to that schema.
     ///
     /// # Behavior
     ///
-    /// Sends a request to the server to lookup values based on the provided filters and limit
-    /// Returns the raw response bytes from the server
+    /// Ordering is applied before pagination. Returns the raw response bytes
+    /// from the server; parse them with `MontycatResponse`.
     ///
     /// # Examples
     ///
     /// ```rust, ignore
     /// use serde_json::json;
     ///
-    /// let search_criteria = json!({
-    ///     "field1": "value1",
-    ///    "field2": { "num": 10 }
-    /// });
+    /// let search_criteria = json!({ "field1": "value1", "field2": 10 });
     ///
-    /// let limit = Some(Limit { start: 0, stop: 10 });
-    ///
-    /// let res: Result<Option<Vec<u8>>, MontycatClientError> = keyspace.lookup_values_where(search_criteria, limit, true, true, false, Some("MySchema".to_string())).await;
+    /// let res = keyspace
+    ///     .lookup_values_where(
+    ///         search_criteria,
+    ///         Some(Limit::new(0, 10)),
+    ///         Some(ResultOrder::Descending),
+    ///         true,
+    ///         true,
+    ///         false,
+    ///         Some(MySchema::schema_params()),
+    ///     )
+    ///     .await;
     ///
     /// let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(res);
     /// ```
