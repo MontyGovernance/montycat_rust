@@ -15,7 +15,7 @@ The official async Rust client for [Montycat](https://montygovernance.com) — a
 // Search your data by MEANING — no external APIs, no separate vector database.
 // (already ON by default in the montycat-semantic server edition)
 let hits = keyspace
-    .semantic_search_get_values("Show all Bluetooth devices", None, None, None, false, false)
+    .search_values("Show all Bluetooth devices", montycat::SearchMode::Semantic, None, None, None, None, false, false)
     .await;
 // → [{ __key__: 123..., __score__: 0.82, __value__: { "name": "Wireless Headphones" }}]
 ```
@@ -185,13 +185,11 @@ async fn main() {
 }
 ```
 
-## 🧠 AI-Native Semantic Search — Vector Search Built Into Your Database
+## 🧠 Ranked Search — Semantic, BM25 Keyword, and Hybrid
 
-**Stop bolting a separate vector database onto your stack.** Montycat ranks your data by
-*meaning*, not keywords — an embedded, on-device vector-embedding engine turns every write
-into a searchable vector automatically. It's the retrieval layer for **RAG pipelines, AI
-agents, semantic search, recommendation engines, and LLM-powered apps** — with **zero
-external APIs, zero API keys, and zero extra infrastructure.**
+Montycat provides semantic vector search, persistent BM25 keyword search, and
+hybrid ranking in one database. Use `lookup_*` for exact structured matching;
+use `search_keys` or `search_values` for relevance-ranked retrieval.
 
 - 🔎 **Semantic / vector search** — kNN similarity over on-device embeddings, not brittle keyword matches.
 - 🤖 **Built for AI** — RAG, semantic retrieval, AI agents, recommendations, dedup, clustering.
@@ -213,7 +211,7 @@ items by *meaning* using on-device vector embeddings — no external API, no ext
 no separate vector database. It's ON by default in the semantic edition, so just search.
 
 ```rust
-use montycat::{Keyspace, Limit, MontycatResponse, SemanticModel};
+use montycat::{Keyspace, Limit, MontycatResponse, SearchMode, SemanticModel};
 
 // (reuses the `engine` and `persistent` keyspace from the Quick Start above)
 
@@ -221,12 +219,12 @@ use montycat::{Keyspace, Limit, MontycatResponse, SemanticModel};
 //   get_values -> each hit is { __key__, __score__, __value__ }
 //   get_keys   -> each hit is { __key__, __score__ } (lighter; fetch a page later with get_bulk)
 let values = persistent
-    .semantic_search_get_values("Show all Bluetooth devices", None, Some(Limit { start: 0, stop: 5 }), None, false, false)
+    .search_values("Show all Bluetooth devices", SearchMode::Hybrid, None, None, Some(Limit { start: 0, stop: 5 }), None, false, false)
     .await;
 
 // Keys only, with a cosine-similarity floor (range [-1, 1]):
 let _keys = persistent
-    .semantic_search_get_keys("Show all Bluetooth devices", None, Some(Limit { start: 0, stop: 5 }), Some(0.35))
+    .search_keys("Show all Bluetooth devices", SearchMode::Semantic, None, None, Some(Limit { start: 0, stop: 5 }), Some(0.35))
     .await;
 
 let parsed = MontycatResponse::<Vec<serde_json::Value>>::parse_response(values);
@@ -259,18 +257,26 @@ engine
     .await?;
 ```
 
-### Hybrid semantic search
+### Search modes and metadata filters
 
-Restrict semantic ranking to records matching structured metadata. The filter
-is a hard AND pre-filter with the same criteria shape as `lookup_keys_where`;
-it does not boost or otherwise alter cosine scores.
+`Semantic` ranks by vector similarity, `Keyword` uses BM25, and `Hybrid`
+combines both ranked lists with reciprocal-rank fusion. Optional filters are an
+exact hard pre-filter and do not contribute to relevance.
+
+`__score__` is cosine similarity in semantic mode, raw BM25 relevance in
+keyword mode, and a normalized `[0, 1]` RRF score in hybrid mode. Keyword
+scores have no fixed upper bound, so compare scores only within the same query
+and search mode. A hybrid score near `1.0` means strong agreement between both
+rankings; a top result found by only one branch is around `0.5`. `min_score`
+filters only the semantic branch.
 
 ```rust
 let filtered = persistent
-    .semantic_search_get_values_where(
+    .search_values(
         "astronomy and outer space",
+        SearchMode::Hybrid,
         None,
-        serde_json::json!({"category": "space"}),
+        Some(serde_json::json!({"category": "space"})),
         Some(Limit { start: 0, stop: 5 }),
         Some(0.35),
         false,
@@ -313,14 +319,14 @@ keyspace
 
 // Searching: a query vector bypasses text embedding, so the query may be empty.
 let hits = keyspace
-    .semantic_search_get_values("", Some(my_query_embedding), None, None, false, false)
+    .search_values("", SearchMode::Semantic, Some(my_query_embedding), None, None, None, false, false)
     .await?;
 ```
 
 `vector` is also accepted by `insert_custom_key_value` and `update_value`, and
 `update_bulk` takes `vectors` for numeric keys plus `custom_vectors` for custom
-keys. All four `semantic_search_*` methods accept a query vector. Pass `None`
-anywhere you want the server to embed.
+keys. `search_keys` and `search_values` accept a query vector in semantic mode.
+Pass `None` anywhere you want the server to embed.
 
 **Embedding-space compatibility is required.** Every supplied record vector and
 query vector must be produced by the model enrolled for that keyspace, including

@@ -20,6 +20,25 @@ pub enum ResultOrder {
     Descending,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchMode {
+    #[default]
+    Semantic,
+    Keyword,
+    Hybrid,
+}
+
+impl SearchMode {
+    pub(crate) fn command(self) -> &'static str {
+        match self {
+            Self::Semantic => "semantic_search",
+            Self::Keyword => "keyword_search",
+            Self::Hybrid => "hybrid_search",
+        }
+    }
+}
+
 impl Limit {
     /// Creates a default limit with start and stop set to 0.
     ///

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-09-02
+
+- Added exported `SearchMode` plus `search_keys` and `search_values`
+  for semantic, BM25 keyword, and hybrid RRF retrieval. Existing positional
+  `semantic_search_*` methods are deprecated but retain their exact signatures
+  and semantic behavior. Current engines normalize hybrid RRF scores to
+  `[0, 1]`.
+
+### Documentation
+
+- Clarify score semantics: hybrid RRF is bounded to `[0, 1]`, while raw BM25
+  keyword scores are unbounded and should only be compared within the same
+  query and search mode.
+
 ## [0.4.2] - 2026-08-25
 
 ### Documentation

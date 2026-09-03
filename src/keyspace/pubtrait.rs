@@ -1,5 +1,5 @@
 use crate::{
-    Limit, MontycatClientError, ResultOrder,
+    Limit, MontycatClientError, ResultOrder, SearchMode,
     engine::{structure::Engine, utils::send_data},
     request::{
         store_request::structure::StoreRequestClient,
@@ -1142,8 +1142,9 @@ where
         with_pointers: bool,
         key_included: bool,
         pointers_metadata: bool,
+        mode: SearchMode,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        if semantic_vector.is_none() && query.trim().is_empty() {
+        if (mode != SearchMode::Semantic || semantic_vector.is_none()) && query.trim().is_empty() {
             return Err(MontycatClientError::ClientNoValidInputProvided);
         }
         if semantic_vector.as_ref().is_some_and(|vector| {
@@ -1175,7 +1176,7 @@ where
             .store
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
-        let command: String = "semantic_search".to_string();
+        let command: String = mode.command().to_string();
 
         let limit_map: HashMap<String, usize> = match limit {
             Some(lim) => {
@@ -1216,6 +1217,48 @@ where
         Ok(response)
     }
 
+    /// Ranked search using semantic vectors, BM25 keywords, or hybrid RRF.
+    async fn search_keys(
+        &self,
+        query: &str,
+        mode: SearchMode,
+        vector: Option<Vec<f32>>,
+        filters: Option<serde_json::Value>,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.semantic_search_core(
+            query, vector, limit, min_score, filters, false, false, false, mode,
+        )
+        .await
+    }
+
+    /// Ranked search with values using semantic vectors, BM25, or hybrid RRF.
+    async fn search_values(
+        &self,
+        query: &str,
+        mode: SearchMode,
+        vector: Option<Vec<f32>>,
+        filters: Option<serde_json::Value>,
+        limit: Option<Limit>,
+        min_score: Option<f32>,
+        with_pointers: bool,
+        pointers_metadata: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.semantic_search_core(
+            query,
+            vector,
+            limit,
+            min_score,
+            filters,
+            with_pointers,
+            true,
+            pointers_metadata,
+            mode,
+        )
+        .await
+    }
+
     /// Semantic (vector similarity) search returning ranked keys only.
     ///
     /// Ranks stored items by how close their embeddings are to the embedding of
@@ -1251,6 +1294,7 @@ where
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
+    #[deprecated(note = "use search_keys; this compatibility method remains semantic-only")]
     async fn semantic_search_get_keys(
         &self,
         query: &str,
@@ -1258,8 +1302,18 @@ where
         limit: Option<Limit>,
         min_score: Option<f32>,
     ) -> Result<Option<Vec<u8>>, MontycatClientError> {
-        self.semantic_search_core(query, vector, limit, min_score, None, false, false, false)
-            .await
+        self.semantic_search_core(
+            query,
+            vector,
+            limit,
+            min_score,
+            None,
+            false,
+            false,
+            false,
+            SearchMode::Semantic,
+        )
+        .await
     }
 
     /// Hybrid semantic search returning ranked keys only, restricted by a
@@ -1299,6 +1353,7 @@ where
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
+    #[deprecated(note = "use search_keys with filters; this method remains semantic-only")]
     async fn semantic_search_get_keys_where(
         &self,
         query: &str,
@@ -1316,6 +1371,7 @@ where
             false,
             false,
             false,
+            SearchMode::Semantic,
         )
         .await
     }
@@ -1360,6 +1416,7 @@ where
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
+    #[deprecated(note = "use search_values; this compatibility method remains semantic-only")]
     async fn semantic_search_get_values(
         &self,
         query: &str,
@@ -1378,6 +1435,7 @@ where
             with_pointers,
             true,
             pointers_metadata,
+            SearchMode::Semantic,
         )
         .await
     }
@@ -1422,6 +1480,7 @@ where
     /// * `MontycatClientError::ClientStoreNotSet` - If the store is not set in the engine
     /// * `MontycatClientError::ClientEngineError` - If there is an error with the engine
     ///
+    #[deprecated(note = "use search_values with filters; this method remains semantic-only")]
     async fn semantic_search_get_values_where(
         &self,
         query: &str,
@@ -1441,6 +1500,7 @@ where
             with_pointers,
             true,
             pointers_metadata,
+            SearchMode::Semantic,
         )
         .await
     }
