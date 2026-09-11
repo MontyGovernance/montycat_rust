@@ -53,8 +53,8 @@ pub(crate) struct StoreRequestClient {
     pub volumes: Vec<String>,
     pub latest_volume: bool,
     pub pointers_metadata: bool,
-    /// Only `semantic_search` honors min_score; skipped when None so the wire
-    /// is unchanged for every other command (the server defaults it to None).
+    /// Search commands apply `min_score` to their final mode score before
+    /// pagination; skipped when None so existing wire payloads stay unchanged.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_score: Option<f32>,
     /// Hybrid metadata pre-filter for `semantic_search` — a JSON-encoded
