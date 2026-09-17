@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-09-16
+
+### Fixed
+
+- Single and bulk updates now serialize `Timestamp::new(...)` fields as the
+  timestamp strings accepted by the engine. Canonical nested `timestamps` maps
+  remain unchanged.
+- `Timestamp::after(...)` and `Timestamp::before(...)` now emit the engine's
+  `after_timestamp` and `before_timestamp` wire keys. The previous keys caused
+  positive timestamp-bound lookups to return no matches.
+
+### Documentation
+
+- Clarify semantic reload/indexing status and that `min_score` filters the
+  selected search mode's final score before pagination.
+
 ## [0.4.3] - 2026-09-02
 
 - Added exported `SearchMode` plus `search_keys` and `search_values`

@@ -593,10 +593,10 @@ impl Engine {
 
     /// Enables the DB-wide "wait for index" default.
     ///
-    /// Writes block until their secondary indexes are updated before returning,
-    /// so a write is immediately visible to index-backed reads (e.g.
-    /// `lookup_values_where`) at the cost of higher write latency. Requires
-    /// superowner credentials.
+    /// Writes block until their secondary indexes and already-submitted semantic
+    /// live work are updated before returning, so a write is immediately visible
+    /// to index-backed reads, including keyword and hybrid search, at the cost
+    /// of higher write latency. Requires superowner credentials.
     ///
     /// # Examples
     /// ```rust, ignore
@@ -1045,6 +1045,11 @@ impl Engine {
     }
 
     /// Return the actual global and per-keyspace semantic configuration.
+    ///
+    /// The response payload contains `reloading` while retained indexes reopen
+    /// after global semantic search is enabled; retry semantic searches and
+    /// vector uploads until it is false. `indexing` reports live and backfill
+    /// queue depths.
     pub async fn get_semantic_status(
         &self,
         store: Option<&str>,

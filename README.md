@@ -235,6 +235,9 @@ println!("{:?}", parsed);
 engine
     .get_semantic_status(Some("catalog"), Some("products"))
     .await?;
+// Its response payload includes `reloading`; retry searches while it is true,
+// because retained indexes open in the background. `indexing` reports live and
+// backfill queue depths.
 
 // Enable an unenrolled keyspace with an explicit model.
 engine
@@ -268,7 +271,7 @@ keyword mode, and a normalized `[0, 1]` RRF score in hybrid mode. Keyword
 scores have no fixed upper bound, so compare scores only within the same query
 and search mode. A hybrid score near `1.0` means strong agreement between both
 rankings; a top result found by only one branch is around `0.5`. `min_score`
-filters only the semantic branch.
+filters the final selected mode score before pagination.
 
 ```rust
 let filtered = persistent
@@ -327,6 +330,11 @@ let hits = keyspace
 `update_bulk` takes `vectors` for numeric keys plus `custom_vectors` for custom
 keys. `search_keys` and `search_values` accept a query vector in semantic mode.
 Pass `None` anywhere you want the server to embed.
+
+For timestamp updates, use `Timestamp::new(...)` in a typed update value or
+send the canonical nested `timestamps` map. Both single and bulk updates retain
+timestamp indexing. Use `Timestamp::after(...)`, `Timestamp::before(...)`, or
+`Timestamp::range(...)` as lookup criteria.
 
 **Embedding-space compatibility is required.** Every supplied record vector and
 query vector must be produced by the model enrolled for that keyspace, including
