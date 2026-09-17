@@ -331,6 +331,11 @@ let hits = keyspace
 keys. `search_keys` and `search_values` accept a query vector in semantic mode.
 Pass `None` anywhere you want the server to embed.
 
+For timestamp updates, use `Timestamp::new(...)` in a typed update value or
+send the canonical nested `timestamps` map. Both single and bulk updates retain
+timestamp indexing. Use `Timestamp::after(...)`, `Timestamp::before(...)`, or
+`Timestamp::range(...)` as lookup criteria.
+
 **Embedding-space compatibility is required.** Every supplied record vector and
 query vector must be produced by the model enrolled for that keyspace, including
 the same model revision, preprocessing, pooling, and normalization. Matching the
