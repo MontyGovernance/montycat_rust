@@ -5,7 +5,9 @@ use crate::errors::MontycatClientError;
 use crate::request::store_request::structure::StoreRequestClient;
 use crate::request::utis::functions::convert_custom_key;
 use crate::request::{structure::Req, utis::functions::is_custom_type};
-use crate::tools::functions::{process_bulk_values, process_json_value, process_value};
+use crate::tools::functions::{
+    process_bulk_values, process_json_value, process_update_value, process_value,
+};
 use crate::tools::structure::{Limit, ResultOrder};
 use crate::traits::RuntimeSchema;
 use serde::Serialize;
@@ -631,7 +633,7 @@ impl PersistentKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
         let command: String = "update_value".to_string();
-        let value_to_send: String = process_json_value(&value)?;
+        let value_to_send: String = process_update_value(&value)?;
 
         let new_store_request: StoreRequestClient = StoreRequestClient {
             key: Some(key),

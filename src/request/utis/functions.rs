@@ -1,4 +1,4 @@
-use crate::{MontycatClientError, global::PRIMITIVE_TYPES, tools::functions::process_json_value};
+use crate::{MontycatClientError, global::PRIMITIVE_TYPES, tools::functions::process_update_value};
 use indexmap::IndexMap;
 use rayon::prelude::*;
 use serde::Serialize;
@@ -122,7 +122,7 @@ where
 
         let serialized: HashMap<String, String> = merged
             .into_par_iter()
-            .map(|(k, v)| process_json_value(&v).map(|val| (k, val)))
+            .map(|(k, v)| process_update_value(&v).map(|val| (k, val)))
             .collect::<Result<HashMap<_, _>, MontycatClientError>>()?;
 
         Ok::<_, MontycatClientError>(serialized)

@@ -187,7 +187,8 @@ impl Timestamp {
     /// - `after: &str` : The "after" timestamp string.
     ///
     /// # Returns
-    /// - `HashMap<String, String>` : A HashMap with the "after" key and its corresponding value.
+    /// - `HashMap<String, String>` : A HashMap with the wire-level
+    ///   "after_timestamp" key and its corresponding value.
     ///
     /// # Examples
     /// ```rust, ignore
@@ -199,7 +200,7 @@ impl Timestamp {
     ///
     pub fn after(after: &str) -> HashMap<String, String> {
         let mut map: HashMap<String, String> = HashMap::with_capacity(1);
-        map.insert("after".to_string(), after.to_owned());
+        map.insert("after_timestamp".to_string(), after.to_owned());
         map
     }
 
@@ -209,7 +210,8 @@ impl Timestamp {
     /// - `before: &str` : The "before" timestamp string.
     ///
     /// # Returns
-    /// - `HashMap<String, String>` : A HashMap with the "before" key and its corresponding value.
+    /// - `HashMap<String, String>` : A HashMap with the wire-level
+    ///   "before_timestamp" key and its corresponding value.
     ///
     /// # Examples
     /// ```rust, ignore
@@ -220,7 +222,7 @@ impl Timestamp {
     ///
     pub fn before(before: &str) -> HashMap<String, String> {
         let mut map: HashMap<String, String> = HashMap::with_capacity(1);
-        map.insert("before".to_string(), before.to_owned());
+        map.insert("before_timestamp".to_string(), before.to_owned());
         map
     }
 
@@ -377,14 +379,20 @@ mod tests {
     #[test]
     fn test_timestamp_after() {
         let map = Timestamp::after("2024-06-01T00:00:00Z");
-        assert_eq!(map.get("after"), Some(&"2024-06-01T00:00:00Z".to_string()));
+        assert_eq!(
+            map.get("after_timestamp"),
+            Some(&"2024-06-01T00:00:00Z".to_string())
+        );
         assert_eq!(map.len(), 1);
     }
 
     #[test]
     fn test_timestamp_before() {
         let map = Timestamp::before("2024-06-30T23:59:59Z");
-        assert_eq!(map.get("before"), Some(&"2024-06-30T23:59:59Z".to_string()));
+        assert_eq!(
+            map.get("before_timestamp"),
+            Some(&"2024-06-30T23:59:59Z".to_string())
+        );
         assert_eq!(map.len(), 1);
     }
 

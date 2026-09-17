@@ -25,6 +25,36 @@ where
     Ok(value_to_send)
 }
 
+/// Serialize an update value while converting Rust `Timestamp` fields from
+/// their serde wrapper (`{"timestamp": "..."}`) to the top-level string form
+/// accepted by update operations. Canonical nested `timestamps` maps pass
+/// through unchanged.
+pub(crate) fn process_update_value<T>(value: &T) -> Result<String, MontycatClientError>
+where
+    T: Serialize,
+{
+    let mut serialized = serde_json::to_value(value)
+        .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))?;
+
+    if let Some(fields) = serialized.as_object_mut() {
+        for field in fields.values_mut() {
+            let timestamp = field.as_object().and_then(|wrapper| {
+                (wrapper.len() == 1)
+                    .then(|| wrapper.get("timestamp"))
+                    .flatten()
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            });
+            if let Some(timestamp) = timestamp {
+                *field = Value::String(timestamp);
+            }
+        }
+    }
+
+    simd_json::to_string(&serialized)
+        .map_err(|e| MontycatClientError::ClientValueParsingError(e.to_string()))
+}
+
 /// Processes a value into a JSON string, handling special fields for pointers and timestamps.
 ///
 /// # Arguments
@@ -219,4 +249,47 @@ where
     .map_err(|e| MontycatClientError::ClientAsyncRuntimeError(e.to_string()))??;
 
     Ok(res)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::process_update_value;
+    use crate::Timestamp;
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct TimestampUpdate {
+        title: &'static str,
+        modifiedon: Timestamp,
+    }
+
+    #[test]
+    fn update_serialization_unwraps_timestamp_fields() {
+        let serialized = process_update_value(&TimestampUpdate {
+            title: "updated",
+            modifiedon: Timestamp::new("2026-09-15 19:09:09"),
+        })
+        .unwrap();
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&serialized).unwrap(),
+            serde_json::json!({
+                "title": "updated",
+                "modifiedon": "2026-09-15 19:09:09"
+            })
+        );
+    }
+
+    #[test]
+    fn update_serialization_preserves_nested_timestamp_maps() {
+        let value = serde_json::json!({
+            "timestamps": {"modifiedon": "2026-09-15 19:09:09"}
+        });
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&process_update_value(&value).unwrap())
+                .unwrap(),
+            value
+        );
+    }
 }
