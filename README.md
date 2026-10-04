@@ -120,12 +120,17 @@ async fn main() {
 
     // Create keyspaces
     let (res_persist, res_mem) = tokio::join!(
-        persistent.create_keyspace(None, None),
+        persistent.create_keyspace(Some(128), Some(true)),
         in_mem.create_keyspace()
     );
 
     println!("Persistent keyspace: {:?}", res_persist);
     println!("In-memory keyspace: {:?}", res_mem);
+
+    // Compression is fixed at persistent-keyspace creation. Cache capacity is
+    // in MB and can be changed later without resubmitting compression.
+    let cache_update = persistent.update_cache(Some(256)).await;
+    println!("Cache update: {:?}", cache_update);
 
     // Define a schema
     #[derive(Serialize, Deserialize, RuntimeSchema, Clone, Debug)]

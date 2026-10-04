@@ -188,12 +188,14 @@ impl PersistentKeyspace {
         Ok(response)
     }
 
-    /// Updates the cache size and compression settings of the persistent keyspace.
+    /// Compatibility API for cache updates. Compression is immutable after
+    /// keyspace creation and must match its existing value. Prefer [`Self::update_cache`].
     ///
     /// # Arguments
     ///
     /// * `cache` - Optional new cache size for the keyspace. If None, the cache size remains unchanged.
-    /// * `compression` - Optional new compression setting for the keyspace. If None, the compression setting remains unchanged.
+    /// * `compression` - Optional existing compression setting to assert. `None`
+    ///   performs a cache-only update; a different explicit value is rejected.
     ///
     /// # Returns
     ///
@@ -224,7 +226,7 @@ impl PersistentKeyspace {
             .clone()
             .ok_or(MontycatClientError::ClientStoreNotSet)?;
 
-        let vec: Vec<String> = vec![
+        let mut vec: Vec<String> = vec![
             "update-cache-compression".into(),
             "store".into(),
             store,
@@ -232,9 +234,13 @@ impl PersistentKeyspace {
             name.to_owned(),
             "cache".into(),
             cache.map_or("0".into(), |c| c.to_string()),
-            "compression".into(),
-            compression.map_or("n".into(), |c| if c { "y".into() } else { "n".into() }),
         ];
+        if let Some(compression) = compression {
+            vec.extend([
+                "compression".into(),
+                if compression { "y".into() } else { "n".into() },
+            ]);
+        }
 
         let credentials: Vec<String> = engine.get_credentials();
         let query: Req = Req::new_raw_command(vec, credentials);
@@ -243,6 +249,30 @@ impl PersistentKeyspace {
             send_data(&engine, bytes.as_slice(), None, None, None).await?;
 
         Ok(response)
+    }
+
+    /// Updates cache capacity without resubmitting the immutable compression setting.
+    pub async fn update_cache(
+        &self,
+        cache: Option<usize>,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        let engine: Engine = self.get_engine();
+        let store: String = engine
+            .store
+            .clone()
+            .ok_or(MontycatClientError::ClientStoreNotSet)?;
+        let vec = vec![
+            "update-cache-compression".into(),
+            "store".into(),
+            store,
+            "keyspace".into(),
+            self.get_name().to_owned(),
+            "cache".into(),
+            cache.map_or("0".into(), |value| value.to_string()),
+        ];
+        let query = Req::new_raw_command(vec, engine.get_credentials());
+        let bytes = query.byte_down()?;
+        send_data(&engine, bytes.as_slice(), None, None, None).await
     }
 
     /// Inserts a value into the persistent keyspace.
