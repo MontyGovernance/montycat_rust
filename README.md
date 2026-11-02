@@ -265,6 +265,10 @@ engine
     .await?;
 ```
 
+### CPU embedding memory
+
+On Montycat Semantic server 1.3.9 or newer, `engine.enable_semantic_search_with_cpu_arena(false).await?` saves a DB-wide CPU allocator override. The default is `true`; disabling the arena can lower idle memory but may reduce inference throughput. `get_semantic_status()` reports the effective `cpu_arena` and saved `cpu_arena_override`. Existing vectors do not need backfilling. The optional `MONTYCAT_EMBED_CPU_ARENA` environment variable sets the startup default when no API override is saved.
+
 ### Search modes and metadata filters
 
 `Semantic` ranks by vector similarity, `Keyword` uses BM25, and `Hybrid`
