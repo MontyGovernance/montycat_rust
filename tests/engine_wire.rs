@@ -38,6 +38,28 @@ fn raw(request: &Value) -> &Vec<Value> {
 }
 
 #[tokio::test]
+async fn cpu_arena_setting_uses_existing_enable_command() {
+    let (engine, server) = capture_engine(2).await;
+    engine
+        .enable_semantic_search_with_cpu_arena(false)
+        .await
+        .unwrap();
+    engine
+        .enable_semantic_search_with_cpu_arena(true)
+        .await
+        .unwrap();
+    let requests = server.await.unwrap();
+    assert_eq!(
+        requests[0]["raw"],
+        serde_json::json!(["enable-semantic-search", "cpu-arena", "false"])
+    );
+    assert_eq!(
+        requests[1]["raw"],
+        serde_json::json!(["enable-semantic-search", "cpu-arena", "true"])
+    );
+}
+
+#[tokio::test]
 async fn store_owner_access_and_semantic_commands_match_wire_contract() {
     let (engine, server) = capture_engine(12).await;
 

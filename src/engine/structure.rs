@@ -541,6 +541,22 @@ impl Engine {
         Ok(response)
     }
 
+    /// Enables semantic search DB-wide and persists the CPU arena policy.
+    /// True keeps ORT's buffer reuse; false trades throughput for lower idle
+    /// memory. Existing vectors are preserved. Loaded sessions are retired
+    /// after in-flight calls finish. Requires a server supporting `cpu-arena`.
+    pub async fn enable_semantic_search_with_cpu_arena(
+        &self,
+        cpu_arena: bool,
+    ) -> Result<Option<Vec<u8>>, MontycatClientError> {
+        self.admin_command(vec![
+            "enable-semantic-search".into(),
+            "cpu-arena".into(),
+            cpu_arena.to_string(),
+        ])
+        .await
+    }
+
     /// Disables semantic search.
     ///
     /// Without `store`, this is DB-wide: embedding and semantic queries stop across
